@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Контракт agent-dev-kit: статические проверки (типы + линт).
+# Адаптация шаблона nextjs под генератор: линтер — oxlint (его ставят
+# create-vite и nest new), а не eslint.
+# С аргументами линтит только переданные файлы; типы всегда по всему пакету —
+# tsc не умеет проверять один файл в контексте проекта.
+set -eo pipefail
+cd "$(dirname "$0")/.."
+
+npx tsc --noEmit --pretty false
+
+lint_targets=()
+if [ $# -gt 0 ]; then
+  for f in "$@"; do
+    case "$f" in
+      *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) lint_targets+=("$f") ;;
+    esac
+  done
+  [ ${#lint_targets[@]} -gt 0 ] || exit 0
+  npx oxlint --max-warnings 0 "${lint_targets[@]}"
+else
+  npx oxlint --max-warnings 0 src test
+fi

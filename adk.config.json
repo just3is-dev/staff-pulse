@@ -1,0 +1,7 @@
+{
+  "policies": {
+    "merge": "agent-after-approve",
+    "review": { "humanApprovalRequired": false },
+    "autopilot": { "enabled": true, "canMerge": true }
+  }
+}

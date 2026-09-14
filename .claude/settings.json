@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "agent-dev-kit": {
+      "source": {
+        "source": "github",
+        "repo": "just3is-dev/agent-dev-kit"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "agent-dev-kit@agent-dev-kit": true
+  }
+}

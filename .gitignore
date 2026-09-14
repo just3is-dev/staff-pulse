@@ -1,0 +1,27 @@
+.DS_Store
+.idea/
+.vscode/
+*.log
+.env
+.env.*
+!.env.example
+.adk/
+node_modules/
+dist/
+build/
+.next/
+coverage/
+__pycache__/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcresult
+*.tsbuildinfo
+
+# Оригинал задания (PDF) — локально; текст в docs/assignment.md
+.claude/product/
