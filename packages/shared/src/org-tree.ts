@@ -18,13 +18,13 @@ export function parseOrgTree(input: unknown): ParseOrgTreeResult {
   const parsed = orgTreeResponseSchema.safeParse(input);
   if (!parsed.success) {
     // zod/mini не подключает локаль с текстами ошибок, поэтому в сообщение идёт код нарушения.
-    const issue = parsed.error.issues[0];
-    const path = issue?.path.join('.') || '(корень)';
+    const [issue] = parsed.error.issues;
+    const path = issue.path.join('.') || '(корень)';
     return {
       ok: false,
       error: {
         kind: 'shape',
-        message: `Неверная форма ответа в ${path}: ${issue?.code}`,
+        message: `Неверная форма ответа в ${path}: ${issue.code}`,
       },
     };
   }

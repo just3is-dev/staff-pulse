@@ -6,12 +6,8 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "scripts": {
-    "test": "vitest run",
-    "lint": "oxlint src"
-  },
   "devDependencies": {
-    "oxlint": "^1.83.0",
+    "oxlint": "^1.82.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
