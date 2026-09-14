@@ -22,7 +22,8 @@ const T0 = new Date('2026-09-14T12:00:00.000Z');
 
 type PendingRequest = {
   signal: AbortSignal | undefined;
-  respond: (body: unknown) => void;
+  /** Отвечает на запрос; промис завершается, когда функция запроса прочитала тело. */
+  respond: (body: unknown) => Promise<void>;
 };
 
 /** Мок сети: каждый вызов fetch ждёт, пока тест явно не ответит на него. */
@@ -34,12 +35,19 @@ function mockNetwork() {
         requests.push({
           signal: init?.signal ?? undefined,
           respond: (body) =>
-            resolve(
-              new Response(JSON.stringify(body), {
+            new Promise<void>((bodyRead) => {
+              const response = new Response(JSON.stringify(body), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
-              }),
-            ),
+              });
+              const readJson = response.json.bind(response);
+              response.json = async () => {
+                const parsed: unknown = await readJson();
+                bodyRead();
+                return parsed;
+              };
+              resolve(response);
+            }),
         });
       }),
   );
@@ -54,8 +62,10 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 beforeEach(() => {
-  // Управляемые часы: свежесть данных TanStack Query считает по Date.now().
-  vi.useFakeTimers({ toFake: ['Date'] });
+  // Управляемые часы и таймеры: свежесть TanStack Query считает по Date.now(),
+  // а сборку мусора кэша и оповещения подписчиков — таймерами. shouldAdvanceTime
+  // оставляет ход реального времени, чтобы работал waitFor.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(T0);
   queryClient = createQueryClient();
 });
@@ -72,25 +82,26 @@ describe('useOrgTree', () => {
 
     const first = renderHook(() => useOrgTree(), { wrapper });
     await waitFor(() => expect(requests).toHaveLength(1));
-    requests[0].respond(nodes);
+    await requests[0].respond(nodes);
     await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
     first.unmount();
 
-    vi.setSystemTime(T0.getTime() + 4_900);
+    // Время идёт и для таймеров библиотеки, пока компонентов с хуком нет.
+    await vi.advanceTimersByTimeAsync(4_000);
     const fresh = renderHook(() => useOrgTree(), { wrapper });
     expect(fresh.result.current.data).toEqual(nodes);
     expect(fresh.result.current.isFetching).toBe(false);
     fresh.unmount();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    vi.setSystemTime(T0.getTime() + 5_100);
+    await vi.advanceTimersByTimeAsync(1_100);
     const stale = renderHook(() => useOrgTree(), { wrapper });
     expect(stale.result.current.data).toEqual(nodes);
     expect(stale.result.current.isLoading).toBe(false);
     await waitFor(() => expect(stale.result.current.isFetching).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    requests[1].respond(nodes);
+    await requests[1].respond(nodes);
     await waitFor(() => expect(stale.result.current.isFetching).toBe(false));
     expect(stale.result.current.data).toEqual(nodes);
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -103,7 +114,7 @@ describe('useOrgTree', () => {
     const b = renderHook(() => useOrgTree(), { wrapper });
     await waitFor(() => expect(requests).toHaveLength(1));
 
-    requests[0].respond(nodes);
+    await requests[0].respond(nodes);
     await waitFor(() => {
       expect(a.result.current.data).toEqual(nodes);
       expect(b.result.current.data).toEqual(nodes);
@@ -122,8 +133,10 @@ describe('useOrgTree', () => {
     view.unmount();
     await waitFor(() => expect(request.signal?.aborted).toBe(true));
 
-    request.respond(nodes);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Ответ приходит уже после отмены: ждём, пока функция запроса дочитает
+    // тело и завершится, и прокручиваем отложенные оповещения кэша.
+    await request.respond(nodes);
+    await vi.advanceTimersByTimeAsync(0);
     expect(queryClient.getQueryData(orgTreeQueryKey)).toBeUndefined();
   });
 
