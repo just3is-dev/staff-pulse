@@ -65,14 +65,14 @@ describe('OrgTree', () => {
 
     expect(screen.getByText('Команда 1')).toBeInTheDocument();
     expect(departmentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.queryByRole('button', { name: /Команда 1/ }),
+    ).not.toBeInTheDocument();
 
     await user.click(departmentToggle);
 
     expect(screen.queryByText('Команда 1')).not.toBeInTheDocument();
     expect(departmentToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(
-      screen.queryByRole('button', { name: /Команда 1/ }),
-    ).not.toBeInTheDocument();
   });
 
   it('AC-001-13: Enter и Space на переключателе раскрывают и сворачивают ветвь', async () => {
@@ -91,11 +91,15 @@ describe('OrgTree', () => {
     expect(screen.queryByText('Команда 1')).not.toBeInTheDocument();
   });
 
-  it('AC-001-14: видимый узел показывает name, headcount и числовую альтернативу performance', () => {
+  it('AC-001-14: каждый видимый узел показывает name, headcount и числовую альтернативу performance', () => {
     render(<OrgTree nodes={threeLevelFixture} />);
 
     expect(screen.getByText('Дивизион 1')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
     expect(screen.getByText('80')).toBeInTheDocument();
+
+    expect(screen.getByText('Отдел 1')).toBeInTheDocument();
+    expect(screen.getByText('20')).toBeInTheDocument();
+    expect(screen.getByText('40')).toBeInTheDocument();
   });
 });
