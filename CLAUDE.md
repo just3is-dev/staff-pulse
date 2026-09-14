@@ -20,9 +20,13 @@
 - `apps/web` — клиент: Vite + React + TypeScript (create-vite), oxlint, Vitest, Prettier.
 - `apps/server` — mock API и live-обновления: NestJS (nest new, ESM), oxlint, Vitest, Prettier.
 
-Новый пакет (например, общий `packages/shared` со схемами API и контрактом
-патча) обязан получить свои `scripts/check|test|fix` и попасть в `workspaces`
-корневого `package.json` — корневой диспетчер подхватит его автоматически.
+- `packages/shared` — `@staff-pulse/shared`: схемы и тип узла API, проверка
+  ответа `GET /api/org-tree`; отдаётся исходниками TypeScript без сборки
+  (ADR-001), нужен Node 22.18+.
+
+Новый пакет обязан получить свои `scripts/check|test|fix` и попасть в
+`workspaces` корневого `package.json` — корневой диспетчер подхватит его
+автоматически.
 
 ## Процесс
 
