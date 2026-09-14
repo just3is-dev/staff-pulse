@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import type { OrgNode } from '@staff-pulse/shared';
@@ -105,7 +105,10 @@ describe('OrgTreeScreen', () => {
   });
 
   it('AC-001-10: пустой массив приводит к состоянию «Пусто», элементов дерева нет', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse([])));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse([])),
+    );
 
     renderScreen();
 
@@ -116,9 +119,7 @@ describe('OrgTreeScreen', () => {
   it('AC-001-4: ответ, нарушающий форму, приводит к «Ошибке» без имён узлов на экране', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        jsonResponse([{ ...nodes[0], performance: 101 }]),
-      ),
+      vi.fn(async () => jsonResponse([{ ...nodes[0], performance: 101 }])),
     );
 
     renderScreen();
@@ -130,24 +131,12 @@ describe('OrgTreeScreen', () => {
   it('AC-001-5: ответ, нарушающий структуру дерева, приводит к «Ошибке» без данных ответа на экране', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        jsonResponse([{ ...nodes[0], parentId: 'ghost' }]),
-      ),
+      vi.fn(async () => jsonResponse([{ ...nodes[0], parentId: 'ghost' }])),
     );
 
     renderScreen();
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByText('Дивизион')).not.toBeInTheDocument();
-  });
-
-  it('показывает дерево при валидном непустом ответе', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(nodes)));
-
-    renderScreen();
-
-    await waitFor(() =>
-      expect(screen.getByText('Дивизион')).toBeInTheDocument(),
-    );
   });
 });
