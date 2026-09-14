@@ -9,7 +9,6 @@ export function createQueryClient(): QueryClient {
         staleTime: STALE_TIME_MS,
         structuralSharing: true,
         retry: false,
-        // Срабатывают только для устаревших данных, лишних запросов не дают.
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
       },

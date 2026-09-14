@@ -81,14 +81,14 @@ describe('useOrgTree', () => {
     await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
     first.unmount();
 
-    await vi.advanceTimersByTimeAsync(4_000);
+    await vi.advanceTimersByTimeAsync(4_800);
     const fresh = renderHook(() => useOrgTree(), { wrapper });
     expect(fresh.result.current.data).toEqual(nodes);
     expect(fresh.result.current.isFetching).toBe(false);
     fresh.unmount();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(1_100);
+    await vi.advanceTimersByTimeAsync(300);
     const stale = renderHook(() => useOrgTree(), { wrapper });
     expect(stale.result.current.data).toEqual(nodes);
     expect(stale.result.current.isLoading).toBe(false);
