@@ -30,7 +30,7 @@ export function OrgTreeNode({
 
   return (
     <li>
-      <span>
+      <span data-testid={`org-node-${node.id}`}>
         {hasChildren && (
           <Toggle
             type="button"
@@ -43,7 +43,8 @@ export function OrgTreeNode({
             {isExpanded ? '▾' : '▸'}
           </Toggle>
         )}
-        <span>{node.name}</span> <span>{node.headcount}</span>{' '}
+        <span>{node.name}</span>{' '}
+        <span data-testid="node-headcount">{node.headcount}</span>{' '}
         <PerformanceIndicator value={node.performance} />
       </span>
       {hasChildren && isExpanded && (

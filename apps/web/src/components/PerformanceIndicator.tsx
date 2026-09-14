@@ -32,7 +32,7 @@ export function PerformanceIndicator({ value }: PerformanceIndicatorProps) {
   return (
     <span>
       <Dot $level={level} aria-hidden="true" data-testid="performance-dot" />
-      <span>{value}</span>
+      <span data-testid="performance-value">{value}</span>
     </span>
   );
 }

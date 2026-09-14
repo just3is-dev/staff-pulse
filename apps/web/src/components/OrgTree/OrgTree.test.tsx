@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { OrgNode } from '@staff-pulse/shared';
 import { OrgTree } from './OrgTree';
@@ -91,15 +91,21 @@ describe('OrgTree', () => {
     expect(screen.queryByText('Команда 1')).not.toBeInTheDocument();
   });
 
-  it('AC-001-14: каждый видимый узел показывает name, headcount и числовую альтернативу performance', () => {
+  it('AC-001-14: каждый видимый узел показывает name, headcount и индикатор performance с числовой альтернативой', () => {
     render(<OrgTree nodes={threeLevelFixture} />);
 
-    expect(screen.getByText('Дивизион 1')).toBeInTheDocument();
-    expect(screen.getByText('10')).toBeInTheDocument();
-    expect(screen.getByText('80')).toBeInTheDocument();
+    const division = within(screen.getByTestId('org-node-div-1'));
+    expect(division.getByText('Дивизион 1')).toBeInTheDocument();
+    expect(division.getByTestId('node-headcount')).toHaveTextContent('10');
+    expect(division.getByTestId('performance-dot')).toBeInTheDocument();
+    expect(division.getByTestId('performance-value')).toHaveTextContent('80');
 
-    expect(screen.getByText('Отдел 1')).toBeInTheDocument();
-    expect(screen.getByText('20')).toBeInTheDocument();
-    expect(screen.getByText('40')).toBeInTheDocument();
+    const department = within(screen.getByTestId('org-node-dep-1'));
+    expect(department.getByText('Отдел 1')).toBeInTheDocument();
+    expect(department.getByTestId('node-headcount')).toHaveTextContent('20');
+    expect(department.getByTestId('performance-dot')).toBeInTheDocument();
+    expect(department.getByTestId('performance-value')).toHaveTextContent(
+      '40',
+    );
   });
 });
