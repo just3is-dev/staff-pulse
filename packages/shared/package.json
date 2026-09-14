@@ -1,0 +1,22 @@
+{
+  "name": "@staff-pulse/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "oxlint src"
+  },
+  "devDependencies": {
+    "oxlint": "^1.83.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

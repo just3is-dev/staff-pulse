@@ -2,6 +2,7 @@
   "name": "staff-pulse",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ]
 }
