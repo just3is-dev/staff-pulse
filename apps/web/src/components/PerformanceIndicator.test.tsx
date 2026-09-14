@@ -4,19 +4,22 @@ import { PerformanceIndicator } from './PerformanceIndicator';
 
 function dotColor(value: number): string {
   const { unmount } = render(<PerformanceIndicator value={value} />);
-  const color = getComputedStyle(screen.getByTestId('performance-dot'))
-    .backgroundColor;
+  const color = getComputedStyle(
+    screen.getByTestId('performance-dot'),
+  ).backgroundColor;
   unmount();
   return color;
 }
 
 describe('PerformanceIndicator', () => {
   it.each([0, 49, 50, 74, 75, 100])(
-    'AC-001-14: текстовая альтернатива значения %i содержит число',
+    'AC-001-14: текстовая альтернатива значения %i содержит число и доступна вспомогательным технологиям',
     (value) => {
       render(<PerformanceIndicator value={value} />);
 
-      expect(screen.getByText(String(value))).toBeInTheDocument();
+      const alternative = screen.getByText(String(value));
+      expect(alternative).toBeInTheDocument();
+      expect(alternative).not.toHaveAttribute('aria-hidden', 'true');
     },
   );
 
