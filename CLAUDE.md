@@ -21,7 +21,7 @@
 - `apps/server` — mock API и live-обновления: NestJS (nest new, ESM), oxlint, Vitest, Prettier.
 - `packages/shared` — `@staff-pulse/shared`: схемы и тип узла API, проверка
   ответа `GET /api/org-tree`; отдаётся исходниками TypeScript без сборки
-  (ADR-001), нужен Node `^22.22.3 || >=24.15`.
+  (ADR-001), нужен Node `^22.22.3 || ^24.15.0 || >=26`.
 
 Новый пакет обязан получить свои `scripts/check|test|fix` и попасть в
 `workspaces` корневого `package.json` — корневой диспетчер подхватит его
