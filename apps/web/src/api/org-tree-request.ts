@@ -1,17 +1,12 @@
 import { parseOrgTree, type OrgNode } from '@staff-pulse/shared';
 
-export const ORG_TREE_URL = '/api/org-tree';
+const ORG_TREE_URL = '/api/org-tree';
 
-export type OrgTreeLoadErrorKind = 'network' | 'http' | 'invalid-response';
-
-/** Ошибка загрузки орг-структуры; `kind` различает причину для UI. */
+/** Ошибка загрузки орг-структуры: сеть, не-2xx или невалидный ответ. */
 export class OrgTreeLoadError extends Error {
-  readonly kind: OrgTreeLoadErrorKind;
-
-  constructor(kind: OrgTreeLoadErrorKind, message: string) {
+  constructor(message: string) {
     super(message);
     this.name = 'OrgTreeLoadError';
-    this.kind = kind;
   }
 }
 
@@ -28,11 +23,11 @@ export async function fetchOrgTree(signal?: AbortSignal): Promise<OrgNode[]> {
     response = await fetch(ORG_TREE_URL, { signal });
   } catch (error) {
     if (isAbortError(error)) throw error;
-    throw new OrgTreeLoadError('network', 'Сервер недоступен');
+    throw new OrgTreeLoadError('Сервер недоступен');
   }
 
   if (!response.ok) {
-    throw new OrgTreeLoadError('http', `Сервер ответил ${response.status}`);
+    throw new OrgTreeLoadError(`Сервер ответил ${response.status}`);
   }
 
   let body: unknown;
@@ -40,12 +35,12 @@ export async function fetchOrgTree(signal?: AbortSignal): Promise<OrgNode[]> {
     body = await response.json();
   } catch (error) {
     if (isAbortError(error)) throw error;
-    throw new OrgTreeLoadError('invalid-response', 'Ответ сервера не JSON');
+    throw new OrgTreeLoadError('Ответ сервера не JSON');
   }
 
   const parsed = parseOrgTree(body);
   if (!parsed.ok) {
-    throw new OrgTreeLoadError('invalid-response', parsed.error.message);
+    throw new OrgTreeLoadError(parsed.error.message);
   }
   return parsed.nodes;
 }

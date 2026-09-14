@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 
 /** Свежесть данных по заданию: 5 секунд после успешного ответа. */
-export const STALE_TIME_MS = 5_000;
+const STALE_TIME_MS = 5_000;
 
 /** Клиент кэша с настройками проекта; один на приложение, новый на каждый тест. */
 export function createQueryClient(): QueryClient {

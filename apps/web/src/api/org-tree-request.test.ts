@@ -35,10 +35,8 @@ const json = (body: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-const expectLoadError = async (kind: OrgTreeLoadError['kind']) => {
-  const error = await fetchOrgTree().catch((caught: unknown) => caught);
-  expect(error).toBeInstanceOf(OrgTreeLoadError);
-  expect((error as OrgTreeLoadError).kind).toBe(kind);
+const expectLoadError = async () => {
+  await expect(fetchOrgTree()).rejects.toBeInstanceOf(OrgTreeLoadError);
 };
 
 afterEach(() => {
@@ -66,33 +64,33 @@ describe('fetchOrgTree', () => {
     await expect(fetchOrgTree()).resolves.toEqual(validNodes);
   });
 
-  it.each([404, 500, 503])('ответ %s — ошибка http', async (status) => {
+  it.each([404, 500, 503])('ответ %s — ошибка загрузки', async (status) => {
     mockFetch(async () => json({ message: 'fail' }, status));
-    await expectLoadError('http');
+    await expectLoadError();
   });
 
-  it('сетевой сбой — ошибка network', async () => {
+  it('сетевой сбой — ошибка загрузки', async () => {
     mockFetch(async () => {
       throw new TypeError('Failed to fetch');
     });
-    await expectLoadError('network');
+    await expectLoadError();
   });
 
-  it('тело не JSON — ошибка invalid-response', async () => {
+  it('тело не JSON — ошибка загрузки', async () => {
     mockFetch(async () => new Response('<html>oops</html>', { status: 200 }));
-    await expectLoadError('invalid-response');
+    await expectLoadError();
   });
 
-  it('тело с нарушением формы — ошибка invalid-response', async () => {
+  it('тело с нарушением формы — ошибка загрузки', async () => {
     mockFetch(async () => json([{ ...validNodes[0], performance: 101 }]));
-    await expectLoadError('invalid-response');
+    await expectLoadError();
   });
 
-  it('тело с нарушением структуры — ошибка invalid-response', async () => {
+  it('тело с нарушением структуры — ошибка загрузки', async () => {
     mockFetch(async () =>
       json([validNodes[0], { ...validNodes[1], parentId: 'ghost' }]),
     );
-    await expectLoadError('invalid-response');
+    await expectLoadError();
   });
 
   it('отмена запроса пробрасывается как AbortError, а не как ошибка загрузки', async () => {
