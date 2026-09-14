@@ -2,7 +2,6 @@ import { parseOrgTree, type OrgNode } from '@staff-pulse/shared';
 
 const ORG_TREE_URL = '/api/org-tree';
 
-/** Ошибка загрузки орг-структуры: сеть, не-2xx или невалидный ответ. */
 export class OrgTreeLoadError extends Error {
   constructor(message: string) {
     super(message);
@@ -13,10 +12,6 @@ export class OrgTreeLoadError extends Error {
 const isAbortError = (error: unknown) =>
   error instanceof DOMException && error.name === 'AbortError';
 
-/**
- * Загружает и проверяет орг-структуру. Отмена через `signal` пробрасывается
- * как `AbortError` без обёртки — её обрабатывает слой кэша, а не UI.
- */
 export async function fetchOrgTree(signal?: AbortSignal): Promise<OrgNode[]> {
   let response: Response;
   try {

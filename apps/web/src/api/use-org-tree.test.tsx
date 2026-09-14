@@ -22,11 +22,9 @@ const T0 = new Date('2026-09-14T12:00:00.000Z');
 
 type PendingRequest = {
   signal: AbortSignal | undefined;
-  /** Отвечает на запрос; промис завершается, когда функция запроса прочитала тело. */
   respond: (body: unknown) => Promise<void>;
 };
 
-/** Мок сети: каждый вызов fetch ждёт, пока тест явно не ответит на него. */
 function mockNetwork() {
   const requests: PendingRequest[] = [];
   const fetchMock = vi.fn(
@@ -62,9 +60,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 beforeEach(() => {
-  // Управляемые часы и таймеры: свежесть TanStack Query считает по Date.now(),
-  // а сборку мусора кэша и оповещения подписчиков — таймерами. shouldAdvanceTime
-  // оставляет ход реального времени, чтобы работал waitFor.
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(T0);
   queryClient = createQueryClient();
@@ -86,7 +81,6 @@ describe('useOrgTree', () => {
     await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
     first.unmount();
 
-    // Время идёт и для таймеров библиотеки, пока компонентов с хуком нет.
     await vi.advanceTimersByTimeAsync(4_000);
     const fresh = renderHook(() => useOrgTree(), { wrapper });
     expect(fresh.result.current.data).toEqual(nodes);
@@ -133,8 +127,6 @@ describe('useOrgTree', () => {
     view.unmount();
     await waitFor(() => expect(request.signal?.aborted).toBe(true));
 
-    // Ответ приходит уже после отмены: ждём, пока функция запроса дочитает
-    // тело и завершится, и прокручиваем отложенные оповещения кэша.
     await request.respond(nodes);
     await vi.advanceTimersByTimeAsync(0);
     expect(queryClient.getQueryData(orgTreeQueryKey)).toBeUndefined();
