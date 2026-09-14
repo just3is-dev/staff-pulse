@@ -1,4 +1,4 @@
-import { helper } from '../helper';
+import { helper } from '../lib/helper';
 
 export function RelativeImportUser() {
   return helper();

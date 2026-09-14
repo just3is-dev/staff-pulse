@@ -14,6 +14,11 @@ lint_targets=()
 if [ $# -gt 0 ]; then
   for f in "$@"; do
     case "$f" in
+      # Фикстуры с намеренными нарушениями для lint-тестов (AC-001-16) —
+      # вне цели линта, как и вне include tsc; их отдельно гоняет сам тест.
+      */test-fixtures/*|test-fixtures/*) continue ;;
+    esac
+    case "$f" in
       *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) lint_targets+=("$f") ;;
     esac
   done
