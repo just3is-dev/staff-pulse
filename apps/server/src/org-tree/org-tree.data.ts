@@ -1,8 +1,6 @@
 import { parseOrgTree, type OrgNode } from '@staff-pulse/shared';
 
-// Дивизион -> отдел -> команда, ровно 3 уровня. Числа полей — чистые функции
-// индекса узла (без Math.random и без Date.now), поэтому дерево одинаково
-// от процесса к процессу и от запроса к запросу.
+// Значения полей — чистые функции индекса узла, без Math.random и без Date.now.
 const DIVISIONS = 4;
 const DEPARTMENTS_PER_DIVISION = 3;
 const TEAMS_PER_DEPARTMENT = 3;
@@ -63,5 +61,4 @@ if (!validation.ok) {
   );
 }
 
-/** Детерминированные данные `GET /api/org-tree`: не меняются во время работы. */
 export const ORG_TREE: OrgNode[] = generated;
