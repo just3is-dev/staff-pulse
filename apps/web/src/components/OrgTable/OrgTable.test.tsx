@@ -227,22 +227,32 @@ describe('OrgTable', () => {
       const rowsOf = () => screen.getAllByRole('row').slice(1);
       const input = screen.getByLabelText('Фильтр по названию');
 
-      fireEvent.change(input, { target: { value: 'Диви' } });
-      expect(input).toHaveValue('Диви');
-      await vi.advanceTimersByTimeAsync(200);
+      fireEvent.change(input, { target: { value: 'Отдел' } });
+      expect(input).toHaveValue('Отдел');
+      await vi.advanceTimersByTimeAsync(150);
       expect(rowsOf().map(nameOf)).toEqual([
         'Дивизион продаж',
         'Отдел маркетинга',
       ]);
 
+      // "Дивизион" совпадает с другой строкой, чем "Отдел": если бы старый
+      // таймер не отменился, применился бы прежний запрос и результат был
+      // бы неверным ("Отдел маркетинга"), а не просто "тем же самым".
       fireEvent.change(input, { target: { value: 'Дивизион' } });
-      await vi.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(150);
       expect(rowsOf().map(nameOf)).toEqual([
         'Дивизион продаж',
         'Отдел маркетинга',
       ]);
 
-      await vi.advanceTimersByTimeAsync(60);
+      await vi.advanceTimersByTimeAsync(110);
+      await waitFor(() =>
+        expect(rowsOf().map(nameOf)).toEqual(['Дивизион продаж']),
+      );
+
+      // регистр и крайние пробелы запроса не важны.
+      fireEvent.change(input, { target: { value: '  ДИВИЗИОН  ' } });
+      await vi.advanceTimersByTimeAsync(260);
       await waitFor(() =>
         expect(rowsOf().map(nameOf)).toEqual(['Дивизион продаж']),
       );
@@ -260,7 +270,56 @@ describe('OrgTable', () => {
     }
   });
 
-  it('AC-002-9: фильтр сохраняет агрегаты и текущую сортировку, «Ничего не найдено» при отсутствии совпадений', async () => {
+  it('AC-002-9: строка совпавшего родителя сохраняет агрегат по всему поддереву, включая отфильтрованных потомков', async () => {
+    const user = userEvent.setup();
+    // hidden-child не совпадает с фильтром "дивизион" и пропадёт из
+    // строк, но его вклад в агрегат родителя (root-1) обязан остаться:
+    // headcount 5+15=20, budget 1000+2000=3000, эффективность
+    // (80*5+40*15)/20=50.
+    const nodes = [
+      makeOrgNode({
+        id: 'root-1',
+        name: 'Дивизион продаж',
+        parentId: null,
+        headcount: 5,
+        budget: 1_000,
+        performance: 80,
+      }),
+      makeOrgNode({
+        id: 'hidden-child',
+        name: 'Команда поддержки',
+        parentId: 'root-1',
+        headcount: 15,
+        budget: 2_000,
+        performance: 40,
+      }),
+      makeOrgNode({
+        id: 'root-2',
+        name: 'Отдел маркетинга',
+        parentId: null,
+        headcount: 8,
+        budget: 500,
+        performance: 60,
+      }),
+    ];
+    const aggregates = aggregateSubtrees(nodes);
+    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+    const cellsOf = (row: HTMLElement) => within(row).getAllByRole('cell');
+    const rowsOf = () => screen.getAllByRole('row').slice(1);
+
+    await user.type(screen.getByLabelText('Фильтр по названию'), 'дивизион');
+    await waitFor(() => expect(rowsOf()).toHaveLength(1));
+
+    const [nameCell, , headcountCell, budgetCell, performanceCell] = cellsOf(
+      rowsOf()[0],
+    );
+    expect(nameCell.textContent).toBe('Дивизион продаж');
+    expect(headcountCell.textContent).toBe('20');
+    expect(budgetCell.textContent).toMatch(/^3[  ]000 руб\.$/);
+    expect(performanceCell.textContent).toBe('50,0');
+  });
+
+  it('AC-002-9: фильтр работает поверх текущей сортировки, «Ничего не найдено» при отсутствии совпадений', async () => {
     const user = userEvent.setup();
     const nodes = [
       makeOrgNode({
@@ -286,8 +345,6 @@ describe('OrgTable', () => {
     render(<OrgTable nodes={nodes} aggregates={aggregates} />);
     const nameOf = (row: HTMLElement) =>
       within(row).getAllByRole('cell')[0].textContent;
-    const headcountOf = (row: HTMLElement) =>
-      within(row).getAllByRole('cell')[2].textContent;
     const rowsOf = () => screen.getAllByRole('row').slice(1);
 
     await user.click(screen.getByRole('button', { name: 'Всего сотрудников' }));
@@ -304,8 +361,6 @@ describe('OrgTable', () => {
         'Дивизион продаж',
       ]),
     );
-    expect(headcountOf(rowsOf()[0])).toBe('20');
-    expect(headcountOf(rowsOf()[1])).toBe('30');
 
     await user.clear(screen.getByLabelText('Фильтр по названию'));
     await user.type(screen.getByLabelText('Фильтр по названию'), 'нет такого');
