@@ -2,34 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { OrgNode } from '@staff-pulse/shared';
+import { makeOrgNode } from '@/test/make-org-node';
 import { OrgTree } from './OrgTree';
 
-const node = (overrides: Partial<OrgNode> & Pick<OrgNode, 'id'>): OrgNode => ({
-  name: overrides.id,
-  parentId: null,
-  headcount: 1,
-  budget: 1,
-  performance: 50,
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-});
-
 const threeLevelFixture: OrgNode[] = [
-  node({
+  makeOrgNode({
     id: 'div-1',
     name: 'Дивизион 1',
     parentId: null,
     headcount: 10,
     performance: 80,
   }),
-  node({
+  makeOrgNode({
     id: 'dep-1',
     name: 'Отдел 1',
     parentId: 'div-1',
     headcount: 20,
     performance: 40,
   }),
-  node({
+  makeOrgNode({
     id: 'team-1',
     name: 'Команда 1',
     parentId: 'dep-1',

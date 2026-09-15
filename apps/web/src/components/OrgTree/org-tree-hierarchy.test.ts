@@ -1,24 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { OrgNode } from '@staff-pulse/shared';
+import { makeOrgNode } from '@/test/make-org-node';
 import { groupByParent } from './org-tree-hierarchy';
-
-const node = (id: string, parentId: string | null): OrgNode => ({
-  id,
-  name: id,
-  parentId,
-  headcount: 1,
-  budget: 1,
-  performance: 50,
-  updatedAt: '2026-01-01T00:00:00.000Z',
-});
 
 describe('groupByParent', () => {
   it('группирует узлы по parentId, сохраняя порядок соседей как во входном массиве', () => {
     const nodes = [
-      node('root-1', null),
-      node('child-b', 'root-1'),
-      node('root-2', null),
-      node('child-a', 'root-1'),
+      makeOrgNode({ id: 'root-1', parentId: null }),
+      makeOrgNode({ id: 'child-b', parentId: 'root-1' }),
+      makeOrgNode({ id: 'root-2', parentId: null }),
+      makeOrgNode({ id: 'child-a', parentId: 'root-1' }),
     ];
 
     const grouped = groupByParent(nodes);
@@ -31,7 +21,10 @@ describe('groupByParent', () => {
   });
 
   it('сохраняет порядок соседей, даже если потомок идёт во входном массиве раньше родителя', () => {
-    const nodes = [node('child', 'root'), node('root', null)];
+    const nodes = [
+      makeOrgNode({ id: 'child', parentId: 'root' }),
+      makeOrgNode({ id: 'root', parentId: null }),
+    ];
 
     const grouped = groupByParent(nodes);
 
