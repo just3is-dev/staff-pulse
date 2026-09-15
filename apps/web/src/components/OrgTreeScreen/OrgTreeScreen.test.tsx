@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import type { OrgNode } from '@staff-pulse/shared';
 import { createQueryClient, STALE_TIME_MS } from '@/api/query-client';
+import { orgTreeQueryKey } from '@/api/use-org-tree';
 import { OrgTreeScreen } from './OrgTreeScreen';
 
 const nodes: OrgNode[] = [
@@ -241,6 +242,41 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     expect(
       screen.queryByRole('button', { name: 'Повторить' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('AC-001-3: ревалидация неизменённых данных — условный запрос, 304, прежние данные и раскрытие', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify(treeNodes), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ETag: 'W/"tree-v1"' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    renderScreen();
+    await screen.findByText('Дивизион 1');
+    await user.click(
+      screen.getByRole('button', { name: 'Свернуть Дивизион 1' }),
+    );
+    const cachedBefore = queryClient.getQueryData(orgTreeQueryKey);
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
+    await revalidateAfterStaleness(fetchMock);
+
+    const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(new Headers(init.headers).get('If-None-Match')).toBe('W/"tree-v1"');
+    await waitFor(() =>
+      expect(queryClient.getQueryState(orgTreeQueryKey)?.fetchStatus).toBe(
+        'idle',
+      ),
+    );
+    expect(queryClient.getQueryData(orgTreeQueryKey)).toBe(cachedBefore);
+    expect(headcountOf('div-1')).toHaveTextContent('10');
+    expect(
+      screen.getByRole('button', { name: 'Развернуть Дивизион 1' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Отдел 1')).not.toBeInTheDocument();
+    expect(screen.queryByText(refreshErrorText)).not.toBeInTheDocument();
   });
 
   it('AC-001-15: раскрытие и сворачивание, сделанные пользователем, переживают обновление данных', async () => {

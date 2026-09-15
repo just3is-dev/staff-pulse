@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { OrgNode } from '@staff-pulse/shared';
-import { fetchOrgTree, OrgTreeLoadError } from './org-tree-request';
+import {
+  fetchOrgTree,
+  OrgTreeLoadError,
+  type OrgTreeSnapshot,
+} from './org-tree-request';
 
 const validNodes: OrgNode[] = [
   {
@@ -29,10 +33,13 @@ const mockFetch = (impl: () => Promise<Response>) => {
   return fetchMock;
 };
 
-const json = (body: unknown, status = 200) =>
+const json = (body: unknown, status = 200, etag?: string) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(etag ? { ETag: etag } : {}),
+    },
   });
 
 const expectLoadError = async () => {
@@ -59,9 +66,58 @@ describe('fetchOrgTree', () => {
     expect(init.signal).toBe(controller.signal);
   });
 
-  it('возвращает проверенные узлы при валидном ответе', async () => {
+  it('возвращает проверенные узлы и ETag при валидном ответе', async () => {
+    mockFetch(async () => json(validNodes, 200, 'W/"v1"'));
+    await expect(fetchOrgTree()).resolves.toEqual({
+      nodes: validNodes,
+      etag: 'W/"v1"',
+    });
+  });
+
+  it('без ETag в ответе запоминает etag как null', async () => {
     mockFetch(async () => json(validNodes));
-    await expect(fetchOrgTree()).resolves.toEqual(validNodes);
+    await expect(fetchOrgTree()).resolves.toEqual({
+      nodes: validNodes,
+      etag: null,
+    });
+  });
+
+  it('с прежним снимком отправляет условный запрос мимо HTTP-кэша браузера', async () => {
+    const fetchMock = mockFetch(async () => json(validNodes, 200, 'W/"v2"'));
+    const previous: OrgTreeSnapshot = { nodes: validNodes, etag: 'W/"v1"' };
+
+    await fetchOrgTree(undefined, previous);
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(new Headers(init.headers).get('If-None-Match')).toBe('W/"v1"');
+    expect(init.cache).toBe('no-store');
+  });
+
+  it('без прежнего ETag не отправляет If-None-Match', async () => {
+    const fetchMock = mockFetch(async () => json(validNodes));
+
+    await fetchOrgTree(undefined, { nodes: validNodes, etag: null });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(new Headers(init.headers).has('If-None-Match')).toBe(false);
+  });
+
+  it('ответ 304 возвращает прежний снимок тем же объектом', async () => {
+    mockFetch(async () => new Response(null, { status: 304 }));
+    const previous: OrgTreeSnapshot = { nodes: validNodes, etag: 'W/"v1"' };
+
+    await expect(fetchOrgTree(undefined, previous)).resolves.toBe(previous);
+  });
+
+  it('ответ 304 без прежнего снимка — ошибка загрузки', async () => {
+    mockFetch(async () => new Response(null, { status: 304 }));
+    await expectLoadError();
   });
 
   it.each([404, 500, 503])('ответ %s — ошибка загрузки', async (status) => {
