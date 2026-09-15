@@ -1,7 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { parseOrgTree, type OrgNode } from '@staff-pulse/shared';
 import { createApp } from '../create-app.js';
+import { OrgTreeController } from './org-tree.controller.js';
+import { OrgTreeService } from './org-tree.service.js';
 
 function maxDepth(nodes: OrgNode[]): number {
   const byId = new Map(nodes.map((node) => [node.id, node]));
@@ -86,5 +89,48 @@ describe('GET /api/org-tree', () => {
 
     expect(response.status).toBe(200);
     expect(parseOrgTree(response.body).ok).toBe(true);
+  });
+});
+
+describe('GET /api/org-tree: ETag при изменении данных', () => {
+  const node: OrgNode = {
+    id: 'div-1',
+    name: 'Дивизион',
+    parentId: null,
+    headcount: 10,
+    budget: 1_000,
+    performance: 50,
+    updatedAt: '2026-09-01T10:00:00.000Z',
+  };
+  let current: OrgNode[] = [node];
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      controllers: [OrgTreeController],
+      providers: [
+        { provide: OrgTreeService, useValue: { getOrgTree: () => current } },
+      ],
+    }).compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('после изменения данных меняется ETag, а прежний ETag получает 200 с новыми данными', async () => {
+    const before = await request(app.getHttpServer()).get('/api/org-tree');
+
+    current = [{ ...node, headcount: 11 }];
+    const after = await request(app.getHttpServer())
+      .get('/api/org-tree')
+      .set('If-None-Match', before.headers.etag)
+      .set('Cache-Control', 'no-cache');
+
+    expect(after.status).toBe(200);
+    expect(after.headers.etag).not.toBe(before.headers.etag);
+    expect(after.body[0].headcount).toBe(11);
   });
 });
