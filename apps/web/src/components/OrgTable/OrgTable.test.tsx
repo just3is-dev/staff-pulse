@@ -229,7 +229,7 @@ describe('OrgTable', () => {
 
       fireEvent.change(input, { target: { value: 'Отдел' } });
       expect(input).toHaveValue('Отдел');
-      await vi.advanceTimersByTimeAsync(150);
+      await vi.advanceTimersByTimeAsync(240);
       expect(rowsOf().map(nameOf)).toEqual([
         'Дивизион продаж',
         'Отдел маркетинга',
@@ -239,22 +239,23 @@ describe('OrgTable', () => {
       // таймер не отменился, применился бы прежний запрос и результат был
       // бы неверным ("Отдел маркетинга"), а не просто "тем же самым".
       fireEvent.change(input, { target: { value: 'Дивизион' } });
-      await vi.advanceTimersByTimeAsync(150);
+      await vi.advanceTimersByTimeAsync(240);
       expect(rowsOf().map(nameOf)).toEqual([
         'Дивизион продаж',
         'Отдел маркетинга',
       ]);
 
-      await vi.advanceTimersByTimeAsync(110);
+      await vi.advanceTimersByTimeAsync(20);
       await waitFor(() =>
         expect(rowsOf().map(nameOf)).toEqual(['Дивизион продаж']),
       );
 
-      // регистр и крайние пробелы запроса не важны.
-      fireEvent.change(input, { target: { value: '  ДИВИЗИОН  ' } });
+      // регистр и крайние пробелы запроса не важны: другой регистр и
+      // другое слово с пробелами по краям дают ожидаемо другой результат.
+      fireEvent.change(input, { target: { value: '  ОТДЕЛ  ' } });
       await vi.advanceTimersByTimeAsync(260);
       await waitFor(() =>
-        expect(rowsOf().map(nameOf)).toEqual(['Дивизион продаж']),
+        expect(rowsOf().map(nameOf)).toEqual(['Отдел маркетинга']),
       );
 
       fireEvent.change(input, { target: { value: '' } });
