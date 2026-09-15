@@ -19,9 +19,7 @@ export function buildTableRows(
   const rows: OrgTableRow[] = [];
 
   function visit(node: OrgNode, level: number) {
-    // aggregateSubtrees обходит те же узлы от тех же корней, поэтому агрегат
-    // для node.id всегда есть — недостижимых от корня узлов parseOrgTree не
-    // пропускает.
+    // aggregateSubtrees обходит те же узлы от тех же корней — агрегат для node.id есть всегда.
     const aggregate = aggregates.get(node.id)!;
     rows.push({
       id: node.id,

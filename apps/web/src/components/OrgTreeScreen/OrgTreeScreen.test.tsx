@@ -32,8 +32,6 @@ function renderScreen() {
   return render(<OrgTreeScreen />, { wrapper });
 }
 
-// Таблица агрегатов (issue #33) показывает те же имена узлов, что и дерево,
-// поэтому запросы по тексту узла нужно сузить до области дерева.
 const tree = () => within(screen.getByRole('region', { name: 'Дерево' }));
 
 describe('OrgTreeScreen', () => {
@@ -206,8 +204,6 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   ) {
     fetchMock.mockResolvedValueOnce(response);
     renderScreen();
-    // Таблица показывает те же имена узлов, что и дерево — findAllByText
-    // ждёт появления текста, не требуя единственного совпадения.
     await screen.findAllByText(expectText);
   }
 
@@ -362,9 +358,9 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     vi.stubGlobal('fetch', fetchMock);
     await loadTree(fetchMock);
 
-    expect(tableHeadcountOf('Команда 1')).toHaveTextContent('5');
-    expect(tableHeadcountOf('Отдел 1')).toHaveTextContent('25');
-    expect(tableHeadcountOf('Дивизион 1')).toHaveTextContent('35');
+    expect(tableHeadcountOf('Команда 1').textContent).toBe('5');
+    expect(tableHeadcountOf('Отдел 1').textContent).toBe('25');
+    expect(tableHeadcountOf('Дивизион 1').textContent).toBe('35');
 
     const updatedNodes = treeNodes.map((item) =>
       item.id === 'team-1' ? { ...item, headcount: item.headcount + 50 } : item,
@@ -373,12 +369,12 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     await revalidateAfterStaleness(fetchMock);
 
     await waitFor(() =>
-      expect(tableHeadcountOf('Команда 1')).toHaveTextContent('55'),
+      expect(tableHeadcountOf('Команда 1').textContent).toBe('55'),
     );
-    expect(tableHeadcountOf('Отдел 1')).toHaveTextContent('75');
-    expect(tableHeadcountOf('Дивизион 1')).toHaveTextContent('85');
-    expect(tableHeadcountOf('Команда 2')).toHaveTextContent('7');
-    expect(tableHeadcountOf('Отдел 2')).toHaveTextContent('47');
-    expect(tableHeadcountOf('Дивизион 2')).toHaveTextContent('77');
+    expect(tableHeadcountOf('Отдел 1').textContent).toBe('75');
+    expect(tableHeadcountOf('Дивизион 1').textContent).toBe('85');
+    expect(tableHeadcountOf('Команда 2').textContent).toBe('7');
+    expect(tableHeadcountOf('Отдел 2').textContent).toBe('47');
+    expect(tableHeadcountOf('Дивизион 2').textContent).toBe('77');
   });
 });

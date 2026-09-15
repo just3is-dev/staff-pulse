@@ -68,7 +68,7 @@ describe('OrgTable', () => {
     expect(within(teamRow).getAllByRole('cell')[1].textContent).toBe('3');
   });
 
-  it('форматирует бюджет и среднюю эффективность в ячейках строки', () => {
+  it('AC-002-5: форматирует бюджет и среднюю эффективность в ячейках строки, «—» при нулевой численности', () => {
     const nodes = [
       makeOrgNode({
         id: 'root-1',
@@ -78,15 +78,26 @@ describe('OrgTable', () => {
         budget: 12_345_678,
         performance: 72.44,
       }),
+      makeOrgNode({
+        id: 'root-2',
+        name: 'Пустое подразделение',
+        parentId: null,
+        headcount: 0,
+        budget: 0,
+      }),
     ];
     const aggregates = aggregateSubtrees(nodes);
 
     render(<OrgTable nodes={nodes} aggregates={aggregates} />);
 
-    const [budgetCell, performanceCell] = within(screen.getAllByRole('row')[1])
+    const rows = screen.getAllByRole('row').slice(1);
+    const [budgetCell, performanceCell] = within(rows[0])
       .getAllByRole('cell')
       .slice(3);
     expect(budgetCell.textContent).toMatch(/^12[  ]345[  ]678 руб\.$/);
     expect(performanceCell.textContent).toBe('72,4');
+
+    const emptyPerformanceCell = within(rows[1]).getAllByRole('cell')[4];
+    expect(emptyPerformanceCell.textContent).toBe('—');
   });
 });
