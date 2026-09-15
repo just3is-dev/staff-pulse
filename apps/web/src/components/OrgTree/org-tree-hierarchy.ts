@@ -1,8 +1,6 @@
 import type { OrgNode } from '@staff-pulse/shared';
 
-export function groupByParent(
-  nodes: OrgNode[],
-): Map<string | null, OrgNode[]> {
+export function groupByParent(nodes: OrgNode[]): Map<string | null, OrgNode[]> {
   const childrenByParentId = new Map<string | null, OrgNode[]>();
 
   for (const node of nodes) {
