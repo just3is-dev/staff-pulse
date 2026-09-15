@@ -38,10 +38,6 @@ export function OrgTreeScreen() {
     );
   }
 
-  if (data.length === 0) {
-    return <Message>Подразделений нет.</Message>;
-  }
-
   return (
     <>
       {isError && (
@@ -49,7 +45,11 @@ export function OrgTreeScreen() {
           Не удалось обновить данные
         </RefreshErrorNotice>
       )}
-      <OrgTree nodes={data} />
+      {data.length === 0 ? (
+        <Message>Подразделений нет.</Message>
+      ) : (
+        <OrgTree nodes={data} />
+      )}
     </>
   );
 }

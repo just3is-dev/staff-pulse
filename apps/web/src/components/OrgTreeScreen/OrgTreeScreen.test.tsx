@@ -227,6 +227,22 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     },
   );
 
+  it('AC-001-11: ошибка фонового обновления при пустом списке оставляет «Пусто» и показывает уведомление', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse([]));
+    vi.stubGlobal('fetch', fetchMock);
+    renderScreen();
+    await screen.findByText('Подразделений нет.');
+
+    fetchMock.mockResolvedValueOnce(jsonResponse('fail', 500));
+    await revalidateAfterStaleness(fetchMock);
+
+    expect(await screen.findByText(refreshErrorText)).toBeInTheDocument();
+    expect(screen.getByText('Подразделений нет.')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Повторить' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('AC-001-15: раскрытие и сворачивание, сделанные пользователем, переживают обновление данных', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const fetchMock = vi.fn();
@@ -255,6 +271,7 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
 
     await vi.advanceTimersByTimeAsync(50);
     expect(screen.queryByText('Загрузка…')).not.toBeInTheDocument();
+    expect(screen.queryByText(refreshErrorText)).not.toBeInTheDocument();
     expect(headcountOf('team-2')).toHaveTextContent('7');
 
     act(() => respond(jsonResponse(updatedNodes)));
