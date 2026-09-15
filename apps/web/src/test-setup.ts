@@ -2,6 +2,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { aggregationSpy } from '@/test/aggregation-spy';
+import { installMatchMedia } from '@/test/match-media';
 
 vi.mock('@/org-model/aggregate-subtrees', async (importOriginal) => {
   const actual =
@@ -11,6 +12,7 @@ vi.mock('@/org-model/aggregate-subtrees', async (importOriginal) => {
 
 beforeEach(() => {
   aggregationSpy.mockReset();
+  installMatchMedia();
 });
 
 afterEach(() => {

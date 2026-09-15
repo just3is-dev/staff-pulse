@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import styled from 'styled-components';
 import { useOrgTree } from '@/api/use-org-tree';
 import { OrgTree } from '@/components/OrgTree/OrgTree';
 import { OrgTable } from '@/components/OrgTable/OrgTable';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const Message = styled.p`
   color: var(--text);
@@ -21,8 +23,36 @@ const RetryButton = styled.button`
   cursor: pointer;
 `;
 
+const ViewToggle = styled.div`
+  display: flex;
+  gap: 0.5em;
+  margin: 0 0 1em;
+`;
+
+const ViewToggleButton = styled.button`
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    font-weight: 600;
+  }
+`;
+
+const Layout = styled.div<{ $sideBySide: boolean }>`
+  display: grid;
+  grid-template-columns: ${({ $sideBySide }) =>
+    $sideBySide ? 'minmax(0, 1fr) minmax(0, 2fr)' : 'minmax(0, 1fr)'};
+  gap: 2em;
+  align-items: start;
+`;
+
+type View = 'tree' | 'table';
+
+const VIEW_LABELS: Record<View, string> = { tree: 'Дерево', table: 'Таблица' };
+
 export function OrgTreeScreen() {
   const { data, isPending, isError, refetch } = useOrgTree();
+  const isWide = useMediaQuery('(min-width: 1280px)');
+  const [view, setView] = useState<View>('tree');
 
   if (isPending) {
     return <Message role="status">Загрузка…</Message>;
@@ -50,12 +80,28 @@ export function OrgTreeScreen() {
         <Message>Подразделений нет.</Message>
       ) : (
         <>
-          <section aria-label="Дерево">
-            <OrgTree nodes={data.nodes} />
-          </section>
-          <section aria-label="Таблица">
-            <OrgTable nodes={data.nodes} aggregates={data.aggregates} />
-          </section>
+          {!isWide && (
+            <ViewToggle role="group" aria-label="Вид">
+              {(Object.keys(VIEW_LABELS) as View[]).map((option) => (
+                <ViewToggleButton
+                  key={option}
+                  type="button"
+                  aria-pressed={view === option}
+                  onClick={() => setView(option)}
+                >
+                  {VIEW_LABELS[option]}
+                </ViewToggleButton>
+              ))}
+            </ViewToggle>
+          )}
+          <Layout $sideBySide={isWide}>
+            <section aria-label="Дерево" hidden={!isWide && view !== 'tree'}>
+              <OrgTree nodes={data.nodes} />
+            </section>
+            <section aria-label="Таблица" hidden={!isWide && view !== 'table'}>
+              <OrgTable nodes={data.nodes} aggregates={data.aggregates} />
+            </section>
+          </Layout>
         </>
       )}
     </>
