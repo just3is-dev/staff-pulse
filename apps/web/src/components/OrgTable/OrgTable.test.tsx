@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { makeOrgNode } from '@/test/make-org-node';
 import { aggregateSubtrees } from '@/org-model/aggregate-subtrees';
 import { OrgTable } from './OrgTable';
@@ -99,5 +100,92 @@ describe('OrgTable', () => {
 
     const emptyPerformanceCell = within(rows[1]).getAllByRole('cell')[4];
     expect(emptyPerformanceCell.textContent).toBe('—');
+  });
+
+  it('AC-002-6: клик по текстовому столбцу сортирует по алфавиту без учёта регистра, двойной клик — по убыванию', async () => {
+    const user = userEvent.setup();
+    const nodes = [
+      makeOrgNode({ id: 'a', name: 'Яблоко', parentId: null }),
+      makeOrgNode({ id: 'b', name: 'айсберг', parentId: null }),
+      makeOrgNode({ id: 'c', name: 'Берёза', parentId: null }),
+    ];
+    const aggregates = aggregateSubtrees(nodes);
+    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+    const nameOf = (row: HTMLElement) =>
+      within(row).getAllByRole('cell')[0].textContent;
+
+    await user.click(screen.getByRole('button', { name: 'Подразделение' }));
+
+    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
+      'айсберг',
+      'Берёза',
+      'Яблоко',
+    ]);
+
+    await user.dblClick(screen.getByRole('button', { name: /Подразделение/ }));
+
+    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
+      'Яблоко',
+      'Берёза',
+      'айсберг',
+    ]);
+  });
+
+  it('AC-002-6: клик по числовому столбцу сортирует по значению, двойной клик — по убыванию', async () => {
+    const user = userEvent.setup();
+    const nodes = [
+      makeOrgNode({ id: 'a', name: 'a', parentId: null, headcount: 20 }),
+      makeOrgNode({ id: 'b', name: 'b', parentId: null, headcount: 5 }),
+      makeOrgNode({ id: 'c', name: 'c', parentId: null, headcount: 10 }),
+    ];
+    const aggregates = aggregateSubtrees(nodes);
+    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+    const nameOf = (row: HTMLElement) =>
+      within(row).getAllByRole('cell')[0].textContent;
+
+    await user.click(screen.getByRole('button', { name: 'Всего сотрудников' }));
+
+    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
+      'b',
+      'c',
+      'a',
+    ]);
+
+    await user.dblClick(
+      screen.getByRole('button', { name: /Всего сотрудников/ }),
+    );
+
+    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
+      'a',
+      'c',
+      'b',
+    ]);
+  });
+
+  it('AC-002-6: признак направления сортировки виден только у активного столбца', async () => {
+    const user = userEvent.setup();
+    const nodes = [
+      makeOrgNode({ id: 'a', name: 'a', parentId: null, headcount: 1 }),
+      makeOrgNode({ id: 'b', name: 'b', parentId: null, headcount: 2 }),
+    ];
+    const aggregates = aggregateSubtrees(nodes);
+    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+
+    await user.click(screen.getByRole('button', { name: 'Всего сотрудников' }));
+
+    const headers = screen.getAllByRole('columnheader');
+    const activeHeader = headers.find(
+      (header) => header.textContent === 'Всего сотрудников ▲',
+    );
+    expect(activeHeader).toHaveAttribute('aria-sort', 'ascending');
+    for (const header of headers) {
+      if (header === activeHeader) continue;
+      expect(header).not.toHaveAttribute('aria-sort');
+    }
+
+    await user.dblClick(
+      screen.getByRole('button', { name: /Всего сотрудников/ }),
+    );
+    expect(activeHeader).toHaveAttribute('aria-sort', 'descending');
   });
 });
