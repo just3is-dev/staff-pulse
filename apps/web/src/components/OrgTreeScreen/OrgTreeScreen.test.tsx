@@ -32,6 +32,10 @@ function renderScreen() {
   return render(<OrgTreeScreen />, { wrapper });
 }
 
+// Таблица агрегатов (issue #33) показывает те же имена узлов, что и дерево,
+// поэтому запросы по тексту узла нужно сузить до области дерева.
+const tree = () => within(screen.getByRole('region', { name: 'Дерево' }));
+
 describe('OrgTreeScreen', () => {
   it('AC-001-9: до первого ответа сервера показывает «Загрузка»', () => {
     vi.stubGlobal('fetch', vi.fn(neverSettles));
@@ -39,6 +43,7 @@ describe('OrgTreeScreen', () => {
     renderScreen();
 
     expect(screen.getByRole('status')).toHaveTextContent('Загрузка');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('AC-001-9: при сетевой ошибке показывает «Ошибка» с кнопкой «Повторить»', async () => {
@@ -55,6 +60,7 @@ describe('OrgTreeScreen', () => {
       await screen.findByRole('button', { name: 'Повторить' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('AC-001-9: при ответе 500 показывает «Ошибка» с кнопкой «Повторить»', async () => {
@@ -68,6 +74,7 @@ describe('OrgTreeScreen', () => {
     expect(
       await screen.findByRole('button', { name: 'Повторить' }),
     ).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('AC-001-9: «Повторить» отправляет новый запрос и после успешного ответа показывает дерево', async () => {
@@ -85,7 +92,8 @@ describe('OrgTreeScreen', () => {
     });
     await user.click(retryButton);
 
-    expect(await screen.findByText('Дивизион')).toBeInTheDocument();
+    const treeRegion = await screen.findByRole('region', { name: 'Дерево' });
+    expect(within(treeRegion).getByText('Дивизион')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -99,6 +107,7 @@ describe('OrgTreeScreen', () => {
 
     expect(await screen.findByText('Подразделений нет.')).toBeInTheDocument();
     expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('AC-001-4: ответ, нарушающий форму, приводит к «Ошибке» без имён узлов на экране', async () => {
@@ -111,6 +120,7 @@ describe('OrgTreeScreen', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByText('Дивизион')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('AC-001-5: ответ, нарушающий структуру дерева, приводит к «Ошибке» без данных ответа на экране', async () => {
@@ -123,6 +133,7 @@ describe('OrgTreeScreen', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByText('Дивизион')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 });
 
@@ -171,6 +182,17 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   const headcountOf = (id: string) =>
     within(screen.getByTestId(`org-node-${id}`)).getByTestId('node-headcount');
 
+  function tableRowFor(name: string) {
+    const tableRegion = within(screen.getByRole('region', { name: 'Таблица' }));
+    const row = tableRegion
+      .getAllByRole('row')
+      .find((candidate) => within(candidate).queryByText(name));
+    if (!row) throw new Error(`Строка таблицы для «${name}» не найдена`);
+    return within(row).getAllByRole('cell');
+  }
+
+  const tableHeadcountOf = (name: string) => tableRowFor(name)[2];
+
   function setupUser() {
     return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
   }
@@ -184,7 +206,9 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   ) {
     fetchMock.mockResolvedValueOnce(response);
     renderScreen();
-    await screen.findByText(expectText);
+    // Таблица показывает те же имена узлов, что и дерево — findAllByText
+    // ждёт появления текста, не требуя единственного совпадения.
+    await screen.findAllByText(expectText);
   }
 
   async function revalidateAfterStaleness(fetchMock: ReturnType<typeof vi.fn>) {
@@ -230,8 +254,8 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
       expect(
         screen.getByRole('button', { name: 'Развернуть Дивизион 1' }),
       ).toBeInTheDocument();
-      expect(screen.queryByText('Отдел 1')).not.toBeInTheDocument();
-      expect(screen.getByText('Отдел 2')).toBeInTheDocument();
+      expect(tree().queryByText('Отдел 1')).not.toBeInTheDocument();
+      expect(tree().getByText('Отдел 2')).toBeInTheDocument();
       expect(
         screen.queryByText('Не удалось загрузить орг-структуру.'),
       ).not.toBeInTheDocument();
@@ -284,7 +308,7 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     expect(
       screen.getByRole('button', { name: 'Развернуть Дивизион 1' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText('Отдел 1')).not.toBeInTheDocument();
+    expect(tree().queryByText('Отдел 1')).not.toBeInTheDocument();
     expect(screen.queryByText(refreshErrorText)).not.toBeInTheDocument();
   });
 
@@ -300,8 +324,8 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     await user.click(
       screen.getByRole('button', { name: 'Развернуть Отдел 2' }),
     );
-    expect(screen.queryByText('Отдел 1')).not.toBeInTheDocument();
-    expect(screen.getByText('Команда 2')).toBeInTheDocument();
+    expect(tree().queryByText('Отдел 1')).not.toBeInTheDocument();
+    expect(tree().getByText('Команда 2')).toBeInTheDocument();
 
     const updatedNodes = treeNodes.map((item) =>
       item.id === 'div-1' || item.id === 'team-2'
@@ -325,11 +349,36 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     expect(
       screen.getByRole('button', { name: 'Развернуть Дивизион 1' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText('Отдел 1')).not.toBeInTheDocument();
+    expect(tree().queryByText('Отдел 1')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Свернуть Отдел 2' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Команда 2')).toBeInTheDocument();
+    expect(tree().getByText('Команда 2')).toBeInTheDocument();
     expect(screen.queryByText(refreshErrorText)).not.toBeInTheDocument();
+  });
+
+  it('AC-002-13: после ревалидации с новыми значениями листа таблица показывает пересчитанные агрегаты в строке листа и всех его предков', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await loadTree(fetchMock);
+
+    expect(tableHeadcountOf('Команда 1')).toHaveTextContent('5');
+    expect(tableHeadcountOf('Отдел 1')).toHaveTextContent('25');
+    expect(tableHeadcountOf('Дивизион 1')).toHaveTextContent('35');
+
+    const updatedNodes = treeNodes.map((item) =>
+      item.id === 'team-1' ? { ...item, headcount: item.headcount + 50 } : item,
+    );
+    fetchMock.mockResolvedValueOnce(jsonResponse(updatedNodes));
+    await revalidateAfterStaleness(fetchMock);
+
+    await waitFor(() =>
+      expect(tableHeadcountOf('Команда 1')).toHaveTextContent('55'),
+    );
+    expect(tableHeadcountOf('Отдел 1')).toHaveTextContent('75');
+    expect(tableHeadcountOf('Дивизион 1')).toHaveTextContent('85');
+    expect(tableHeadcountOf('Команда 2')).toHaveTextContent('7');
+    expect(tableHeadcountOf('Отдел 2')).toHaveTextContent('47');
+    expect(tableHeadcountOf('Дивизион 2')).toHaveTextContent('77');
   });
 });

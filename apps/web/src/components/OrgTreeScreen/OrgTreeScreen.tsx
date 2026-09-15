@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import { useOrgTree } from '@/api/use-org-tree';
 import { OrgTree } from '@/components/OrgTree/OrgTree';
+import { OrgTable } from '@/components/OrgTable/OrgTable';
 
 const Message = styled.p`
   color: var(--text);
@@ -48,7 +49,14 @@ export function OrgTreeScreen() {
       {data.nodes.length === 0 ? (
         <Message>Подразделений нет.</Message>
       ) : (
-        <OrgTree nodes={data.nodes} />
+        <>
+          <section aria-label="Дерево">
+            <OrgTree nodes={data.nodes} />
+          </section>
+          <section aria-label="Таблица">
+            <OrgTable nodes={data.nodes} aggregates={data.aggregates} />
+          </section>
+        </>
       )}
     </>
   );
