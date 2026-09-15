@@ -58,6 +58,7 @@ export function OrgTreeScreen() {
 
   function selectNode(id: string) {
     setSelectedId(id);
+    if (!isWide) setView('tree');
     treeRef.current?.reveal(id);
   }
 
