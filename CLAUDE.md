@@ -17,11 +17,13 @@
 Монорепа на npm workspaces. Корневые `scripts/*` — диспетчер: находят пакеты
 по наличию у них `scripts/check|test|fix` и маршрутизируют по путям файлов.
 
-- `apps/web` — клиент: Vite + React + TypeScript (create-vite), oxlint, Vitest, Prettier.
+- `apps/web` — клиент: Vite + React + TypeScript (create-vite), стилизация —
+  styled-components (ADR-002), кэш данных — TanStack Query (ADR-003), oxlint,
+  Vitest, Prettier.
 - `apps/server` — mock API и live-обновления: NestJS (nest new, ESM), oxlint, Vitest, Prettier.
-- `packages/shared` — `@staff-pulse/shared`: схемы и тип узла API, проверка
-  ответа `GET /api/org-tree`; отдаётся исходниками TypeScript без сборки
-  (ADR-001), нужен Node `^22.22.3 || ^24.15.0 || >=26`.
+- `packages/shared` — `@staff-pulse/shared`: схемы (zod/mini) и тип узла API,
+  проверка ответа `GET /api/org-tree`; отдаётся исходниками TypeScript без
+  сборки (ADR-001), нужен Node `^22.22.3 || ^24.15.0 || >=26`.
 
 Новый пакет обязан получить свои `scripts/check|test|fix` и попасть в
 `workspaces` корневого `package.json` — корневой диспетчер подхватит его
@@ -34,6 +36,9 @@
 - Одна задача = одна ветка = один PR. В main напрямую не коммитим.
 - Неочевидные технические решения фиксируются в `docs/adr/`.
 - Документы самодостаточны: читаются без других документов и истории чата.
+- Комментарии в коде — только если без них что-то неочевидно или они
+  фиксируют правило, важное для бизнеса; обоснования решений — в описании
+  PR или ADR, не в коде.
 
 ## Специфика проекта
 
