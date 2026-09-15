@@ -15,6 +15,17 @@ function maxDepth(nodes: OrgNode[]): number {
   return Math.max(...nodes.map((node) => depthOf(node.id)));
 }
 
+function getOrgTree(
+  app: INestApplication,
+  headers: Record<string, string> = {},
+) {
+  let req = request(app.getHttpServer()).get('/api/org-tree');
+  for (const [name, value] of Object.entries(headers)) {
+    req = req.set(name, value);
+  }
+  return req;
+}
+
 describe('GET /api/org-tree', () => {
   let app: INestApplication;
 
@@ -28,7 +39,7 @@ describe('GET /api/org-tree', () => {
   });
 
   it('AC-001-1: отвечает 200 и JSON-массивом не меньше 40 валидных узлов', async () => {
-    const response = await request(app.getHttpServer()).get('/api/org-tree');
+    const response = await getOrgTree(app);
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
@@ -37,8 +48,8 @@ describe('GET /api/org-tree', () => {
   });
 
   it('AC-001-2: id уникальны, parentId ссылается на существующий узел, циклов нет, глубина не меньше 3, повторный запрос идентичен', async () => {
-    const first = await request(app.getHttpServer()).get('/api/org-tree');
-    const second = await request(app.getHttpServer()).get('/api/org-tree');
+    const first = await getOrgTree(app);
+    const second = await getOrgTree(app);
 
     expect(second.body).toEqual(first.body);
 
@@ -50,18 +61,18 @@ describe('GET /api/org-tree', () => {
   });
 
   it('AC-001-3: условный запрос браузера (If-None-Match + Cache-Control: no-cache) с ETag неизменённых данных получает 304 без тела', async () => {
-    const first = await request(app.getHttpServer()).get('/api/org-tree');
+    const first = await getOrgTree(app);
     const etag = first.headers.etag;
     expect(etag).toEqual(expect.any(String));
 
-    const second = await request(app.getHttpServer()).get('/api/org-tree');
+    const second = await getOrgTree(app);
     expect(second.headers.etag).toBe(etag);
 
-    const conditional = await request(app.getHttpServer())
-      .get('/api/org-tree')
-      .set('If-None-Match', etag)
-      .set('Cache-Control', 'no-cache')
-      .set('Pragma', 'no-cache');
+    const conditional = await getOrgTree(app, {
+      'If-None-Match': etag,
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    });
 
     expect(conditional.status).toBe(304);
     expect(conditional.text ?? '').toBe('');
@@ -69,23 +80,20 @@ describe('GET /api/org-tree', () => {
   });
 
   it('ETag из списка в If-None-Match, слабая форма того же ETag и * дают 304', async () => {
-    const { etag } = (await request(app.getHttpServer()).get('/api/org-tree'))
-      .headers;
+    const { etag } = (await getOrgTree(app)).headers;
     const weak = etag.startsWith('W/') ? etag : `W/${etag}`;
 
     for (const header of [`W/"other", ${etag}`, weak, '*']) {
-      const response = await request(app.getHttpServer())
-        .get('/api/org-tree')
-        .set('If-None-Match', header)
-        .set('Cache-Control', 'no-cache');
+      const response = await getOrgTree(app, {
+        'If-None-Match': header,
+        'Cache-Control': 'no-cache',
+      });
       expect(response.status).toBe(304);
     }
   });
 
   it('устаревший ETag в If-None-Match получает 200 с полным списком', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/api/org-tree')
-      .set('If-None-Match', 'W/"stale"');
+    const response = await getOrgTree(app, { 'If-None-Match': 'W/"stale"' });
 
     expect(response.status).toBe(200);
     expect(parseOrgTree(response.body).ok).toBe(true);
@@ -116,18 +124,22 @@ describe('GET /api/org-tree: ETag при изменении данных', () =>
     await app.init();
   });
 
+  beforeEach(() => {
+    current = [node];
+  });
+
   afterAll(async () => {
     await app.close();
   });
 
   it('после изменения данных меняется ETag, а прежний ETag получает 200 с новыми данными', async () => {
-    const before = await request(app.getHttpServer()).get('/api/org-tree');
+    const before = await getOrgTree(app);
 
     current = [{ ...node, headcount: 11 }];
-    const after = await request(app.getHttpServer())
-      .get('/api/org-tree')
-      .set('If-None-Match', before.headers.etag)
-      .set('Cache-Control', 'no-cache');
+    const after = await getOrgTree(app, {
+      'If-None-Match': before.headers.etag,
+      'Cache-Control': 'no-cache',
+    });
 
     expect(after.status).toBe(200);
     expect(after.headers.etag).not.toBe(before.headers.etag);

@@ -105,7 +105,8 @@ async function waitForOk(url: string, timeoutMs: number): Promise<Response> {
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-  const reason = lastError instanceof Error ? lastError.message : String(lastError);
+  const reason =
+    lastError instanceof Error ? lastError.message : String(lastError);
   throw new Error(
     `${url} не ответил за ${timeoutMs}мс: ${reason}\n--- вывод npm run dev ---\n${output.slice(-4000)}`,
   );

@@ -7,7 +7,14 @@ const projectRoot = path.resolve(import.meta.dirname, '..');
 function runOxlint(fixtureRelativePath: string) {
   const result = spawnSync(
     'npx',
-    ['oxlint', '--config', '.oxlintrc.json', '--format', 'json', fixtureRelativePath],
+    [
+      'oxlint',
+      '--config',
+      '.oxlintrc.json',
+      '--format',
+      'json',
+      fixtureRelativePath,
+    ],
     { cwd: projectRoot, encoding: 'utf-8' },
   );
   const diagnostics = (JSON.parse(result.stdout).diagnostics ?? []) as Array<{
@@ -18,24 +25,36 @@ function runOxlint(fixtureRelativePath: string) {
 
 describe('AC-001-16: статическая проверка клиента ловит ../ и inline-стили', () => {
   it('падает на импорте через ../', () => {
-    const { exitCode, diagnostics } = runOxlint('test-fixtures/lint/relative-import.tsx');
+    const { exitCode, diagnostics } = runOxlint(
+      'test-fixtures/lint/relative-import.tsx',
+    );
 
     expect(exitCode).not.toBe(0);
-    expect(diagnostics.some((d) => d.code === 'eslint(no-restricted-imports)')).toBe(true);
+    expect(
+      diagnostics.some((d) => d.code === 'eslint(no-restricted-imports)'),
+    ).toBe(true);
   });
 
   it('падает на атрибуте style у DOM-элемента', () => {
-    const { exitCode, diagnostics } = runOxlint('test-fixtures/lint/dom-style-attr.tsx');
+    const { exitCode, diagnostics } = runOxlint(
+      'test-fixtures/lint/dom-style-attr.tsx',
+    );
 
     expect(exitCode).not.toBe(0);
-    expect(diagnostics.some((d) => d.code === 'react(forbid-dom-props)')).toBe(true);
+    expect(diagnostics.some((d) => d.code === 'react(forbid-dom-props)')).toBe(
+      true,
+    );
   });
 
   it('падает на пропе style у компонента', () => {
-    const { exitCode, diagnostics } = runOxlint('test-fixtures/lint/component-style-prop.tsx');
+    const { exitCode, diagnostics } = runOxlint(
+      'test-fixtures/lint/component-style-prop.tsx',
+    );
 
     expect(exitCode).not.toBe(0);
-    expect(diagnostics.some((d) => d.code === 'react(forbid-component-props)')).toBe(true);
+    expect(
+      diagnostics.some((d) => d.code === 'react(forbid-component-props)'),
+    ).toBe(true);
   });
 
   it('пропускает чистый файл с импортом через алиас', () => {

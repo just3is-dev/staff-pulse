@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 import type { OrgNode } from '@staff-pulse/shared';
-import { PerformanceIndicator } from '@/components/PerformanceIndicator';
+import { PerformanceIndicator } from '@/components/PerformanceIndicator/PerformanceIndicator';
 
 const Toggle = styled.button`
   background: none;

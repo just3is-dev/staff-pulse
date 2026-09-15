@@ -95,8 +95,6 @@ describe('OrgTree', () => {
     expect(department.getByText('Отдел 1')).toBeInTheDocument();
     expect(department.getByTestId('node-headcount')).toHaveTextContent('20');
     expect(department.getByTestId('performance-dot')).toBeInTheDocument();
-    expect(department.getByTestId('performance-value')).toHaveTextContent(
-      '40',
-    );
+    expect(department.getByTestId('performance-value')).toHaveTextContent('40');
   });
 });
