@@ -22,21 +22,21 @@ export function installMatchMedia(width = 1440) {
       get matches() {
         return matches(query);
       },
-      onchange: null,
       addEventListener: (_type: string, listener: Listener) =>
         queryListeners.add(listener),
       removeEventListener: (_type: string, listener: Listener) =>
         queryListeners.delete(listener),
-      addListener: (listener: Listener) => queryListeners.add(listener),
-      removeListener: (listener: Listener) => queryListeners.delete(listener),
-      dispatchEvent: () => true,
-    } as MediaQueryList;
+    } as unknown as MediaQueryList;
   };
 }
 
 export function setViewportWidth(width: number) {
+  const before = new Map(
+    [...listeners.keys()].map((query) => [query, matches(query)]),
+  );
   viewportWidth = width;
   for (const [query, queryListeners] of listeners) {
+    if (matches(query) === before.get(query)) continue;
     const event = {
       matches: matches(query),
       media: query,

@@ -71,6 +71,20 @@ describe('OrgTreeScreen: компоновка по ширине', () => {
     expect(tableRegion()).toBeInTheDocument();
   });
 
+  it('AC-002-1: если на узком экране выбрана «Таблица», после расширения окна снова видны оба вида', async () => {
+    const user = userEvent.setup();
+    installMatchMedia(1024);
+    await renderLoadedScreen();
+
+    await user.click(toggleButton('Таблица'));
+    expect(treeRegion()).not.toBeInTheDocument();
+
+    act(() => setViewportWidth(1440));
+    expect(viewToggle()).not.toBeInTheDocument();
+    expect(treeRegion()).toBeInTheDocument();
+    expect(tableRegion()).toBeInTheDocument();
+  });
+
   it('AC-002-2: раскрытие ветвей дерева сохраняется после смены вида и перехода ширины через 1280px', async () => {
     const user = userEvent.setup();
     await renderLoadedScreen();
