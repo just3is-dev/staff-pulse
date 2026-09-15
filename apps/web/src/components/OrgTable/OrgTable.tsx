@@ -38,7 +38,7 @@ const Row = styled.tr`
   cursor: pointer;
 
   &[aria-selected='true'] {
-    outline: 2px solid var(--accent, #6b8afd);
+    outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
 `;

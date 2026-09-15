@@ -79,9 +79,10 @@ describe('OrgTreeScreen: выделение узла по клику на стр
   it('AC-002-10: клик по строке выделяет её, отмечает узел в дереве, раскрывает свёрнутых предков и прокручивает к узлу', async () => {
     const user = userEvent.setup();
     await renderLoadedScreen();
-    expect(
-      within(treeRegion()).queryByText('Команда 1'),
-    ).not.toBeInTheDocument();
+    await user.click(
+      within(treeRegion()).getByRole('button', { name: 'Свернуть Дивизион 1' }),
+    );
+    expect(within(treeRegion()).queryByText('Отдел 1')).not.toBeInTheDocument();
 
     await selectRow(user, 'Команда 1');
 
@@ -103,6 +104,17 @@ describe('OrgTreeScreen: выделение узла по клику на стр
     expect(selectedRows().map(nameOf)).toEqual(['Отдел 2']);
     expect(currentTreeNodes()).toEqual(['org-node-dep-2']);
     expect(treeNodeNamed('Команда 1')).not.toHaveAttribute('aria-current');
+  });
+
+  it('AC-002-10: повторный клик по той же строке снова прокручивает дерево к узлу', async () => {
+    const user = userEvent.setup();
+    await renderLoadedScreen();
+
+    await selectRow(user, 'Команда 1');
+    await waitFor(() => expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1));
+    await selectRow(user, 'Команда 1');
+
+    await waitFor(() => expect(scrollIntoViewSpy).toHaveBeenCalledTimes(2));
   });
 
   it('AC-002-10: раскрытие предков не сворачивает другие ветви', async () => {
@@ -170,6 +182,7 @@ describe('OrgTreeScreen: выделение узла по клику на стр
           vi.fn().mockResolvedValueOnce(jsonResponse(nodes)),
         );
         await selectRow(user, 'Команда 1');
+        await waitFor(() => expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1));
 
         await revalidateWith(
           fetchMock,
@@ -183,6 +196,7 @@ describe('OrgTreeScreen: выделение узла по клику на стр
             within(rowNamed('Команда 1')).getAllByRole('cell')[2],
           ).toHaveTextContent('7'),
         );
+        expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
         expect(selectedRows().map(nameOf)).toEqual(['Команда 1']);
         expect(currentTreeNodes()).toEqual(['org-node-team-1']);
       } finally {

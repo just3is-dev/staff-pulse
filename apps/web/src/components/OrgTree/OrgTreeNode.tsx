@@ -16,7 +16,7 @@ const NodeLabel = styled.span`
   padding: 0 0.25em;
 
   &[aria-current='true'] {
-    outline: 2px solid var(--accent, #6b8afd);
+    outline: 2px solid var(--accent);
   }
 `;
 
