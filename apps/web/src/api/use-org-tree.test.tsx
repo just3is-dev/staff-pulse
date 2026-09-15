@@ -4,6 +4,7 @@ import type { OrgNode } from '@staff-pulse/shared';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
+import { aggregationSpy } from '@/test/aggregation-spy';
 import { orgTreeQueryKey, useOrgTree } from './use-org-tree';
 
 const nodes: OrgNode[] = [
@@ -70,21 +71,21 @@ describe('useOrgTree', () => {
 
     await vi.advanceTimersByTimeAsync(4_800);
     const fresh = renderHook(() => useOrgTree(), { wrapper });
-    expect(fresh.result.current.data).toEqual(nodes);
+    expect(fresh.result.current.data?.nodes).toEqual(nodes);
     expect(fresh.result.current.isFetching).toBe(false);
     fresh.unmount();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(300);
     const stale = renderHook(() => useOrgTree(), { wrapper });
-    expect(stale.result.current.data).toEqual(nodes);
+    expect(stale.result.current.data?.nodes).toEqual(nodes);
     expect(stale.result.current.isLoading).toBe(false);
     await waitFor(() => expect(stale.result.current.isFetching).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     await requests[1].respond(nodes);
     await waitFor(() => expect(stale.result.current.isFetching).toBe(false));
-    expect(stale.result.current.data).toEqual(nodes);
+    expect(stale.result.current.data?.nodes).toEqual(nodes);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -97,8 +98,8 @@ describe('useOrgTree', () => {
 
     await requests[0].respond(nodes);
     await waitFor(() => {
-      expect(a.result.current.data).toEqual(nodes);
-      expect(b.result.current.data).toEqual(nodes);
+      expect(a.result.current.data?.nodes).toEqual(nodes);
+      expect(b.result.current.data?.nodes).toEqual(nodes);
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -117,6 +118,48 @@ describe('useOrgTree', () => {
     await request.respond(nodes);
     await vi.advanceTimersByTimeAsync(0);
     expect(client().getQueryData(orgTreeQueryKey)).toBeUndefined();
+  });
+
+  it('AC-002-12: агрегаты считаются один раз на версию данных — ответ 304 не пересчитывает, новые данные пересчитывают', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(nodes, { etag: '"v1"' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const view = renderHook(() => useOrgTree(), { wrapper });
+    await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+    expect(aggregationSpy).toHaveBeenCalledTimes(1);
+    const firstData = view.result.current.data;
+    expect(firstData?.aggregates.get('div-1')?.headcount).toBe(10);
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
+    await view.result.current.refetch();
+    await waitFor(() => expect(view.result.current.isFetching).toBe(false));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(aggregationSpy).toHaveBeenCalledTimes(1);
+    expect(view.result.current.data).toBe(firstData);
+    expect(view.result.current.data?.aggregates).toBe(firstData?.aggregates);
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([{ ...nodes[0], headcount: 15 }], { etag: '"v2"' }),
+    );
+    await view.result.current.refetch();
+    await waitFor(() =>
+      expect(view.result.current.data?.aggregates.get('div-1')?.headcount).toBe(
+        15,
+      ),
+    );
+    expect(aggregationSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('значение хука остаётся тем же объектом между рендерами без новых данных', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse(nodes)));
+
+    const view = renderHook(() => useOrgTree(), { wrapper });
+    await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+    const data = view.result.current.data;
+    view.rerender();
+    expect(view.result.current.data).toBe(data);
   });
 
   it('ошибка запроса не повторяется автоматически', async () => {

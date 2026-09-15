@@ -45,10 +45,10 @@ export function OrgTreeScreen() {
           Не удалось обновить данные
         </RefreshErrorNotice>
       )}
-      {data.length === 0 ? (
+      {data.nodes.length === 0 ? (
         <Message>Подразделений нет.</Message>
       ) : (
-        <OrgTree nodes={data} />
+        <OrgTree nodes={data.nodes} />
       )}
     </>
   );
