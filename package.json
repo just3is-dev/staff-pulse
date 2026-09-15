@@ -7,5 +7,11 @@
   ],
   "engines": {
     "node": "^22.22.3 || ^24.15.0 || >=26"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"npm run start:dev -w apps/server\" \"npm run dev -w apps/web\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }
