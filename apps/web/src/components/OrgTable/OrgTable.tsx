@@ -34,6 +34,15 @@ const SortButton = styled.button`
   padding: 0;
 `;
 
+const Row = styled.tr`
+  cursor: pointer;
+
+  &[aria-selected='true'] {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+`;
+
 const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: 'name', label: 'Подразделение' },
   { key: 'level', label: 'Уровень' },
@@ -51,9 +60,16 @@ const ARIA_SORT: Record<SortDirection, 'ascending' | 'descending'> = {
 type OrgTableProps = {
   nodes: OrgNode[];
   aggregates: ReadonlyMap<string, SubtreeAggregate>;
+  selectedId?: string | null;
+  onSelectRow?: (id: string) => void;
 };
 
-export function OrgTable({ nodes, aggregates }: OrgTableProps) {
+export function OrgTable({
+  nodes,
+  aggregates,
+  selectedId = null,
+  onSelectRow,
+}: OrgTableProps) {
   const [sort, setSort] = useState<SortState>(null);
   const [filterInput, setFilterInput] = useState('');
   const [appliedFilter, setAppliedFilter] = useState('');
@@ -121,13 +137,17 @@ export function OrgTable({ nodes, aggregates }: OrgTableProps) {
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.id}>
+              <Row
+                key={row.id}
+                aria-selected={row.id === selectedId}
+                onClick={() => onSelectRow?.(row.id)}
+              >
                 <td>{row.name}</td>
                 <td>{row.level}</td>
                 <td>{row.headcount}</td>
                 <td>{formatBudget(row.budget)}</td>
                 <td>{formatAveragePerformance(row.averagePerformance)}</td>
-              </tr>
+              </Row>
             ))
           )}
         </tbody>

@@ -1,6 +1,7 @@
 :root {
   --text: #6b6375;
   --bg: #fff;
+  --accent: #4f6bed;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 
@@ -23,6 +24,7 @@
   :root {
     --text: #9ca3af;
     --bg: #16171d;
+    --accent: #8ba2ff;
   }
 }
 
