@@ -10,6 +10,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    strictPort: true,
+    proxy: {
+      '/api': `http://localhost:${process.env.PORT ?? 3000}`,
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
