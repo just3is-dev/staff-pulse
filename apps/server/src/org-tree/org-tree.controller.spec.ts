@@ -15,7 +15,10 @@ function maxDepth(nodes: OrgNode[]): number {
   return Math.max(...nodes.map((node) => depthOf(node.id)));
 }
 
-function getOrgTree(app: INestApplication, headers: Record<string, string> = {}) {
+function getOrgTree(
+  app: INestApplication,
+  headers: Record<string, string> = {},
+) {
   return request(app.getHttpServer()).get('/api/org-tree').set(headers);
 }
 
