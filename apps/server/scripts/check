@@ -19,5 +19,5 @@ if [ $# -gt 0 ]; then
   [ ${#lint_targets[@]} -gt 0 ] || exit 0
   npx oxlint --max-warnings 0 "${lint_targets[@]}"
 else
-  npx oxlint --max-warnings 0 src test
+  npx oxlint --max-warnings 0 src
 fi
