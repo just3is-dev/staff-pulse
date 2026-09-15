@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useOrgTree } from '@/api/use-org-tree';
-import { OrgTree } from '@/components/OrgTree/OrgTree';
+import { OrgTree, type OrgTreeHandle } from '@/components/OrgTree/OrgTree';
 import { OrgTable } from '@/components/OrgTable/OrgTable';
 import { useMediaQuery } from '@/hooks/use-media-query';
 
@@ -53,6 +53,13 @@ export function OrgTreeScreen() {
   const { data, isPending, isError, refetch } = useOrgTree();
   const isWide = useMediaQuery('(min-width: 1280px)');
   const [view, setView] = useState<View>('tree');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const treeRef = useRef<OrgTreeHandle>(null);
+
+  function selectNode(id: string) {
+    setSelectedId(id);
+    treeRef.current?.reveal(id);
+  }
 
   if (isPending) {
     return <Message role="status">Загрузка…</Message>;
@@ -96,10 +103,19 @@ export function OrgTreeScreen() {
           )}
           <Layout $sideBySide={isWide}>
             <section aria-label="Дерево" hidden={!isWide && view !== 'tree'}>
-              <OrgTree nodes={data.nodes} />
+              <OrgTree
+                ref={treeRef}
+                nodes={data.nodes}
+                selectedId={selectedId}
+              />
             </section>
             <section aria-label="Таблица" hidden={!isWide && view !== 'table'}>
-              <OrgTable nodes={data.nodes} aggregates={data.aggregates} />
+              <OrgTable
+                nodes={data.nodes}
+                aggregates={data.aggregates}
+                selectedId={selectedId}
+                onSelectRow={selectNode}
+              />
             </section>
           </Layout>
         </>
