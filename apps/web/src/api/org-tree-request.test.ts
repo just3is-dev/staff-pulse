@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { aggregateSubtrees } from '@/org-model/aggregate-subtrees';
 import type { OrgNode } from '@staff-pulse/shared';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
@@ -57,6 +58,7 @@ describe('fetchOrgTree', () => {
     mockFetch(async () => jsonResponse(validNodes, { etag: 'W/"v1"' }));
     await expect(fetchOrgTree()).resolves.toEqual({
       nodes: validNodes,
+      aggregates: aggregateSubtrees(validNodes),
       etag: 'W/"v1"',
     });
   });
@@ -65,6 +67,7 @@ describe('fetchOrgTree', () => {
     mockFetch(async () => jsonResponse(validNodes));
     await expect(fetchOrgTree()).resolves.toEqual({
       nodes: validNodes,
+      aggregates: aggregateSubtrees(validNodes),
       etag: null,
     });
   });
@@ -73,7 +76,11 @@ describe('fetchOrgTree', () => {
     const fetchMock = mockFetch(async () =>
       jsonResponse(validNodes, { etag: 'W/"v2"' }),
     );
-    const previous: OrgTreeSnapshot = { nodes: validNodes, etag: 'W/"v1"' };
+    const previous: OrgTreeSnapshot = {
+      nodes: validNodes,
+      aggregates: aggregateSubtrees(validNodes),
+      etag: 'W/"v1"',
+    };
 
     await fetchOrgTree(undefined, previous);
 
@@ -86,7 +93,11 @@ describe('fetchOrgTree', () => {
     const fetchMock = mockFetch(async () =>
       jsonResponse(validNodes, { etag: 'W/"v2"' }),
     );
-    const previous: OrgTreeSnapshot = { nodes: validNodes, etag: 'W/"v1"' };
+    const previous: OrgTreeSnapshot = {
+      nodes: validNodes,
+      aggregates: aggregateSubtrees(validNodes),
+      etag: 'W/"v1"',
+    };
 
     const next = await fetchOrgTree(undefined, previous);
     expect(next.etag).toBe('W/"v2"');
@@ -99,7 +110,11 @@ describe('fetchOrgTree', () => {
   it('без прежнего ETag не отправляет If-None-Match', async () => {
     const fetchMock = mockFetch(async () => jsonResponse(validNodes));
 
-    await fetchOrgTree(undefined, { nodes: validNodes, etag: null });
+    await fetchOrgTree(undefined, {
+      nodes: validNodes,
+      aggregates: aggregateSubtrees(validNodes),
+      etag: null,
+    });
 
     const [, init] = fetchCallOf(fetchMock);
     expect(new Headers(init.headers).has('If-None-Match')).toBe(false);
@@ -107,7 +122,11 @@ describe('fetchOrgTree', () => {
 
   it('ответ 304 возвращает прежний снимок тем же объектом', async () => {
     mockFetch(async () => new Response(null, { status: 304 }));
-    const previous: OrgTreeSnapshot = { nodes: validNodes, etag: 'W/"v1"' };
+    const previous: OrgTreeSnapshot = {
+      nodes: validNodes,
+      aggregates: aggregateSubtrees(validNodes),
+      etag: 'W/"v1"',
+    };
 
     await expect(fetchOrgTree(undefined, previous)).resolves.toBe(previous);
   });

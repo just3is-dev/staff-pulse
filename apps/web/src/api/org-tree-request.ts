@@ -1,4 +1,8 @@
 import { parseOrgTree, type OrgNode } from '@staff-pulse/shared';
+import {
+  aggregateSubtrees,
+  type SubtreeAggregate,
+} from '@/org-model/aggregate-subtrees';
 
 const ORG_TREE_URL = '/api/org-tree';
 
@@ -11,6 +15,7 @@ export class OrgTreeLoadError extends Error {
 
 export type OrgTreeSnapshot = {
   nodes: OrgNode[];
+  aggregates: Map<string, SubtreeAggregate>;
   etag: string | null;
 };
 
@@ -58,5 +63,9 @@ export async function fetchOrgTree(
   if (!parsed.ok) {
     throw new OrgTreeLoadError(parsed.error.message);
   }
-  return { nodes: parsed.nodes, etag: response.headers.get('ETag') };
+  return {
+    nodes: parsed.nodes,
+    aggregates: aggregateSubtrees(parsed.nodes),
+    etag: response.headers.get('ETag'),
+  };
 }

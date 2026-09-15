@@ -3,6 +3,11 @@ import { fetchOrgTree, type OrgTreeSnapshot } from './org-tree-request';
 
 export const orgTreeQueryKey = ['org-tree'] as const;
 
+const selectOrgTreeData = ({ nodes, aggregates }: OrgTreeSnapshot) => ({
+  nodes,
+  aggregates,
+});
+
 export function useOrgTree() {
   return useQuery({
     queryKey: orgTreeQueryKey,
@@ -11,6 +16,6 @@ export function useOrgTree() {
         signal,
         client.getQueryData<OrgTreeSnapshot>(orgTreeQueryKey),
       ),
-    select: (snapshot) => snapshot.nodes,
+    select: selectOrgTreeData,
   });
 }
