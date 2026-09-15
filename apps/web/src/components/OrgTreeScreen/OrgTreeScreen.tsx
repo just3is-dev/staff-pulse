@@ -8,6 +8,12 @@ const Message = styled.p`
   padding: 2em;
 `;
 
+const RefreshErrorNotice = styled.p`
+  color: var(--text);
+  font-size: 0.9em;
+  margin: 0 0 1em;
+`;
+
 const RetryButton = styled.button`
   display: block;
   margin: 0 auto;
@@ -21,7 +27,7 @@ export function OrgTreeScreen() {
     return <Message role="status">Загрузка…</Message>;
   }
 
-  if (isError) {
+  if (isError && data === undefined) {
     return (
       <div>
         <Message role="alert">Не удалось загрузить орг-структуру.</Message>
@@ -32,9 +38,18 @@ export function OrgTreeScreen() {
     );
   }
 
-  if (data.length === 0) {
-    return <Message>Подразделений нет.</Message>;
-  }
-
-  return <OrgTree nodes={data} />;
+  return (
+    <>
+      {isError && (
+        <RefreshErrorNotice role="status">
+          Не удалось обновить данные
+        </RefreshErrorNotice>
+      )}
+      {data.length === 0 ? (
+        <Message>Подразделений нет.</Message>
+      ) : (
+        <OrgTree nodes={data} />
+      )}
+    </>
+  );
 }
