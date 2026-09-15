@@ -45,4 +45,30 @@ describe('GET /api/org-tree', () => {
 
     expect(maxDepth(result.nodes)).toBeGreaterThanOrEqual(3);
   });
+
+  it('AC-001-3: повторный запрос с ETag неизменённых данных получает 304 без тела', async () => {
+    const first = await request(app.getHttpServer()).get('/api/org-tree');
+    const etag = first.headers.etag;
+    expect(etag).toEqual(expect.any(String));
+
+    const second = await request(app.getHttpServer()).get('/api/org-tree');
+    expect(second.headers.etag).toBe(etag);
+
+    const conditional = await request(app.getHttpServer())
+      .get('/api/org-tree')
+      .set('If-None-Match', etag);
+
+    expect(conditional.status).toBe(304);
+    expect(conditional.text ?? '').toBe('');
+    expect(conditional.body).toEqual({});
+  });
+
+  it('устаревший ETag в If-None-Match получает 200 с полным списком', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/org-tree')
+      .set('If-None-Match', 'W/"stale"');
+
+    expect(response.status).toBe(200);
+    expect(parseOrgTree(response.body).ok).toBe(true);
+  });
 });
