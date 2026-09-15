@@ -6,9 +6,9 @@ import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
-import { setViewportWidth } from '@/test/match-media';
+import { installMatchMedia, setViewportWidth } from '@/test/match-media';
 import { scrollIntoViewSpy } from '@/test/scroll-into-view';
-import { nameOf, rowsOf, treeRegion } from '@/test/screen-regions';
+import { nameOf, rowsOf, tableRegion, treeRegion } from '@/test/screen-regions';
 import { OrgTreeScreen } from './OrgTreeScreen';
 
 const nodes = [
@@ -244,6 +244,45 @@ describe('OrgTreeScreen: выделение узла по клику на стр
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('на узком экране', () => {
+    it('AC-002-11: клик по строке при виде «Таблица» переключает на «Дерево», отмечает узел, раскрывает предков; в момент вызова scrollIntoView узел уже видим', async () => {
+      const user = userEvent.setup();
+      installMatchMedia(1024);
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(nodes)));
+      render(<OrgTreeScreen />, { wrapper });
+      await screen.findByRole('group', { name: 'Вид' });
+      const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
+      await user.click(
+        within(viewToggle()).getByRole('button', { name: 'Таблица' }),
+      );
+      expect(tableRegion()).toBeVisible();
+      expect(
+        screen.queryByRole('region', { name: 'Дерево' }),
+      ).not.toBeInTheDocument();
+
+      let treeSectionHiddenAtCallTime: boolean | undefined;
+      scrollIntoViewSpy.mockImplementationOnce(function (this: HTMLElement) {
+        treeSectionHiddenAtCallTime =
+          this.closest('section')?.hasAttribute('hidden');
+      });
+
+      await selectRow(user, 'Команда 1');
+
+      expect(
+        within(viewToggle()).getByRole('button', { name: 'Дерево' }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      expect(treeRegion()).toBeVisible();
+      expect(
+        screen.queryByRole('region', { name: 'Таблица' }),
+      ).not.toBeInTheDocument();
+      const treeNode = treeNodeNamed('Команда 1');
+      expect(treeNode).toHaveAttribute('aria-current', 'true');
+      await waitFor(() => expect(scrollIntoViewSpy).toHaveBeenCalled());
+      expect(scrollIntoViewSpy.mock.contexts.at(-1)).toBe(treeNode);
+      expect(treeSectionHiddenAtCallTime).toBe(false);
     });
   });
 });
