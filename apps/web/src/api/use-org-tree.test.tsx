@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor, renderHook } from '@testing-library/react';
 import type { OrgNode } from '@staff-pulse/shared';
 import { makeOrgNode } from '@/test/make-org-node';
+import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { orgTreeQueryKey, useOrgTree } from './use-org-tree';
 
@@ -31,10 +32,7 @@ function mockNetwork() {
           signal: init?.signal ?? undefined,
           respond: (body) =>
             new Promise<void>((bodyRead) => {
-              const response = new Response(JSON.stringify(body), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-              });
+              const response = jsonResponse(body);
               const readJson = response.json.bind(response);
               response.json = async () => {
                 const parsed: unknown = await readJson();

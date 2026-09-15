@@ -17,9 +17,7 @@ export function setupQueryClient() {
   return {
     client: () => queryClient,
     wrapper: ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     ),
   };
 }

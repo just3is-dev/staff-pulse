@@ -205,10 +205,7 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
 
   it.each([
     ['сетевая ошибка', () => Promise.reject(new TypeError('Failed to fetch'))],
-    [
-      'ответ 500',
-      () => Promise.resolve(jsonResponse('fail', { status: 500 })),
-    ],
+    ['ответ 500', () => Promise.resolve(jsonResponse('fail', { status: 500 }))],
     [
       'невалидное тело',
       () =>
@@ -280,9 +277,7 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
     const [, init] = fetchCallOf(fetchMock, 1);
     expect(new Headers(init.headers).get('If-None-Match')).toBe('W/"tree-v1"');
     await waitFor(() =>
-      expect(client().getQueryState(orgTreeQueryKey)?.fetchStatus).toBe(
-        'idle',
-      ),
+      expect(client().getQueryState(orgTreeQueryKey)?.fetchStatus).toBe('idle'),
     );
     expect(client().getQueryData(orgTreeQueryKey)).toBe(cachedBefore);
     expect(headcountOf('div-1')).toHaveTextContent('10');
