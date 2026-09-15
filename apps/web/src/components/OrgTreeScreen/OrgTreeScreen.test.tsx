@@ -1,14 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import type { OrgNode } from '@staff-pulse/shared';
-import { createQueryClient, STALE_TIME_MS } from '@/api/query-client';
+import { STALE_TIME_MS } from '@/api/query-client';
 import { orgTreeQueryKey } from '@/api/use-org-tree';
+import { makeOrgNode } from '@/test/make-org-node';
+import { jsonResponse } from '@/test/json-response';
+import { setupQueryClient } from '@/test/query-client-harness';
+import { fetchCallOf } from '@/test/request-init';
 import { OrgTreeScreen } from './OrgTreeScreen';
 
 const nodes: OrgNode[] = [
-  {
+  makeOrgNode({
     id: 'div-1',
     name: 'Дивизион',
     parentId: null,
@@ -16,37 +19,18 @@ const nodes: OrgNode[] = [
     budget: 1_000_000,
     performance: 80,
     updatedAt: '2026-09-01T10:00:00.000Z',
-  },
+  }),
 ];
-
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
 
 function neverSettles(): Promise<Response> {
   return new Promise(() => {});
 }
 
-let queryClient: QueryClient;
+const { client, wrapper } = setupQueryClient();
 
 function renderScreen() {
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <OrgTreeScreen />
-    </QueryClientProvider>,
-  );
+  return render(<OrgTreeScreen />, { wrapper });
 }
-
-beforeEach(() => {
-  queryClient = createQueryClient();
-});
-
-afterEach(() => {
-  queryClient.clear();
-  vi.unstubAllGlobals();
-});
 
 describe('OrgTreeScreen', () => {
   it('AC-001-9: до первого ответа сервера показывает «Загрузка»', () => {
@@ -76,7 +60,7 @@ describe('OrgTreeScreen', () => {
   it('AC-001-9: при ответе 500 показывает «Ошибка» с кнопкой «Повторить»', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse('fail', 500)),
+      vi.fn(async () => jsonResponse('fail', { status: 500 })),
     );
 
     renderScreen();
@@ -90,7 +74,7 @@ describe('OrgTreeScreen', () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse('fail', 500))
+      .mockResolvedValueOnce(jsonResponse('fail', { status: 500 }))
       .mockResolvedValueOnce(jsonResponse(nodes));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -143,24 +127,43 @@ describe('OrgTreeScreen', () => {
 });
 
 describe('OrgTreeScreen: фоновая ревалидация', () => {
-  const node = (
-    overrides: Partial<OrgNode> & Pick<OrgNode, 'id' | 'parentId'>,
-  ): OrgNode => ({
-    name: overrides.id,
-    headcount: 1,
-    budget: 1_000,
-    performance: 50,
-    updatedAt: '2026-09-01T10:00:00.000Z',
-    ...overrides,
-  });
-
   const treeNodes: OrgNode[] = [
-    node({ id: 'div-1', name: 'Дивизион 1', parentId: null, headcount: 10 }),
-    node({ id: 'dep-1', name: 'Отдел 1', parentId: 'div-1', headcount: 20 }),
-    node({ id: 'team-1', name: 'Команда 1', parentId: 'dep-1', headcount: 5 }),
-    node({ id: 'div-2', name: 'Дивизион 2', parentId: null, headcount: 30 }),
-    node({ id: 'dep-2', name: 'Отдел 2', parentId: 'div-2', headcount: 40 }),
-    node({ id: 'team-2', name: 'Команда 2', parentId: 'dep-2', headcount: 7 }),
+    makeOrgNode({
+      id: 'div-1',
+      name: 'Дивизион 1',
+      parentId: null,
+      headcount: 10,
+    }),
+    makeOrgNode({
+      id: 'dep-1',
+      name: 'Отдел 1',
+      parentId: 'div-1',
+      headcount: 20,
+    }),
+    makeOrgNode({
+      id: 'team-1',
+      name: 'Команда 1',
+      parentId: 'dep-1',
+      headcount: 5,
+    }),
+    makeOrgNode({
+      id: 'div-2',
+      name: 'Дивизион 2',
+      parentId: null,
+      headcount: 30,
+    }),
+    makeOrgNode({
+      id: 'dep-2',
+      name: 'Отдел 2',
+      parentId: 'div-2',
+      headcount: 40,
+    }),
+    makeOrgNode({
+      id: 'team-2',
+      name: 'Команда 2',
+      parentId: 'dep-2',
+      headcount: 7,
+    }),
   ];
 
   const refreshErrorText = 'Не удалось обновить данные';
@@ -168,10 +171,20 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   const headcountOf = (id: string) =>
     within(screen.getByTestId(`org-node-${id}`)).getByTestId('node-headcount');
 
-  async function loadTree(fetchMock: ReturnType<typeof vi.fn>) {
-    fetchMock.mockResolvedValueOnce(jsonResponse(treeNodes));
+  function setupUser() {
+    return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  }
+
+  async function loadTree(
+    fetchMock: ReturnType<typeof vi.fn>,
+    {
+      response = jsonResponse(treeNodes),
+      expectText = 'Дивизион 1',
+    }: { response?: Response; expectText?: string } = {},
+  ) {
+    fetchMock.mockResolvedValueOnce(response);
     renderScreen();
-    await screen.findByText('Дивизион 1');
+    await screen.findByText(expectText);
   }
 
   async function revalidateAfterStaleness(fetchMock: ReturnType<typeof vi.fn>) {
@@ -192,7 +205,10 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
 
   it.each([
     ['сетевая ошибка', () => Promise.reject(new TypeError('Failed to fetch'))],
-    ['ответ 500', () => Promise.resolve(jsonResponse('fail', 500))],
+    [
+      'ответ 500',
+      () => Promise.resolve(jsonResponse('fail', { status: 500 })),
+    ],
     [
       'невалидное тело',
       () =>
@@ -201,7 +217,7 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   ])(
     'AC-001-11: %s при фоновом обновлении оставляет дерево с прежними данными и раскрытием и показывает уведомление',
     async (_, failingResponse) => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const user = setupUser();
       const fetchMock = vi.fn();
       vi.stubGlobal('fetch', fetchMock);
       await loadTree(fetchMock);
@@ -229,12 +245,14 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   );
 
   it('AC-001-11: ошибка фонового обновления при пустом списке оставляет «Пусто» и показывает уведомление', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse([]));
+    const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    renderScreen();
-    await screen.findByText('Подразделений нет.');
+    await loadTree(fetchMock, {
+      response: jsonResponse([]),
+      expectText: 'Подразделений нет.',
+    });
 
-    fetchMock.mockResolvedValueOnce(jsonResponse('fail', 500));
+    fetchMock.mockResolvedValueOnce(jsonResponse('fail', { status: 500 }));
     await revalidateAfterStaleness(fetchMock);
 
     expect(await screen.findByText(refreshErrorText)).toBeInTheDocument();
@@ -245,32 +263,28 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   });
 
   it('AC-001-3: ревалидация неизменённых данных — условный запрос, 304, прежние данные и раскрытие', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const fetchMock = vi.fn().mockResolvedValueOnce(
-      new Response(JSON.stringify(treeNodes), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ETag: 'W/"tree-v1"' },
-      }),
-    );
+    const user = setupUser();
+    const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    renderScreen();
-    await screen.findByText('Дивизион 1');
+    await loadTree(fetchMock, {
+      response: jsonResponse(treeNodes, { etag: 'W/"tree-v1"' }),
+    });
     await user.click(
       screen.getByRole('button', { name: 'Свернуть Дивизион 1' }),
     );
-    const cachedBefore = queryClient.getQueryData(orgTreeQueryKey);
+    const cachedBefore = client().getQueryData(orgTreeQueryKey);
 
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
     await revalidateAfterStaleness(fetchMock);
 
-    const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const [, init] = fetchCallOf(fetchMock, 1);
     expect(new Headers(init.headers).get('If-None-Match')).toBe('W/"tree-v1"');
     await waitFor(() =>
-      expect(queryClient.getQueryState(orgTreeQueryKey)?.fetchStatus).toBe(
+      expect(client().getQueryState(orgTreeQueryKey)?.fetchStatus).toBe(
         'idle',
       ),
     );
-    expect(queryClient.getQueryData(orgTreeQueryKey)).toBe(cachedBefore);
+    expect(client().getQueryData(orgTreeQueryKey)).toBe(cachedBefore);
     expect(headcountOf('div-1')).toHaveTextContent('10');
     expect(
       screen.getByRole('button', { name: 'Развернуть Дивизион 1' }),
@@ -280,7 +294,7 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   });
 
   it('AC-001-15: раскрытие и сворачивание, сделанные пользователем, переживают обновление данных', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const user = setupUser();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     await loadTree(fetchMock);
