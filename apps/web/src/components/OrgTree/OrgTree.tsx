@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { OrgNode } from '@staff-pulse/shared';
 import { OrgTreeNode } from './OrgTreeNode';
-import { groupByParent } from './org-tree-hierarchy';
+import { groupByParent } from '@/org-model/org-tree-hierarchy';
 
 type OrgTreeProps = {
   nodes: OrgNode[];
