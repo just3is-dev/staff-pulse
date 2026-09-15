@@ -37,6 +37,8 @@ export async function fetchOrgTree(
   }
 
   if (response.status === 304 && previous) {
+    // Без чтения пустого тела браузер помечает 304 в DevTools как прерванный запрос.
+    await response.text();
     return previous;
   }
 

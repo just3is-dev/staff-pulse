@@ -96,6 +96,21 @@ describe('fetchOrgTree', () => {
     expect(init.cache).toBe('no-store');
   });
 
+  it('200 на условный запрос заменяет ETag снимка новым', async () => {
+    const fetchMock = mockFetch(async () => json(validNodes, 200, 'W/"v2"'));
+    const previous: OrgTreeSnapshot = { nodes: validNodes, etag: 'W/"v1"' };
+
+    const next = await fetchOrgTree(undefined, previous);
+    expect(next.etag).toBe('W/"v2"');
+
+    await fetchOrgTree(undefined, next);
+    const [, init] = fetchMock.mock.calls[1] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(new Headers(init.headers).get('If-None-Match')).toBe('W/"v2"');
+  });
+
   it('без прежнего ETag не отправляет If-None-Match', async () => {
     const fetchMock = mockFetch(async () => json(validNodes));
 
