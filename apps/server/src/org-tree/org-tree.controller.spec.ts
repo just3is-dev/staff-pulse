@@ -46,7 +46,7 @@ describe('GET /api/org-tree', () => {
     expect(maxDepth(result.nodes)).toBeGreaterThanOrEqual(3);
   });
 
-  it('AC-001-3: повторный запрос с ETag неизменённых данных получает 304 без тела', async () => {
+  it('AC-001-3: условный запрос браузера (If-None-Match + Cache-Control: no-cache) с ETag неизменённых данных получает 304 без тела', async () => {
     const first = await request(app.getHttpServer()).get('/api/org-tree');
     const etag = first.headers.etag;
     expect(etag).toEqual(expect.any(String));
@@ -56,11 +56,27 @@ describe('GET /api/org-tree', () => {
 
     const conditional = await request(app.getHttpServer())
       .get('/api/org-tree')
-      .set('If-None-Match', etag);
+      .set('If-None-Match', etag)
+      .set('Cache-Control', 'no-cache')
+      .set('Pragma', 'no-cache');
 
     expect(conditional.status).toBe(304);
     expect(conditional.text ?? '').toBe('');
     expect(conditional.body).toEqual({});
+  });
+
+  it('ETag из списка в If-None-Match, слабая форма того же ETag и * дают 304', async () => {
+    const { etag } = (await request(app.getHttpServer()).get('/api/org-tree'))
+      .headers;
+    const weak = etag.startsWith('W/') ? etag : `W/${etag}`;
+
+    for (const header of [`W/"other", ${etag}`, weak, '*']) {
+      const response = await request(app.getHttpServer())
+        .get('/api/org-tree')
+        .set('If-None-Match', header)
+        .set('Cache-Control', 'no-cache');
+      expect(response.status).toBe(304);
+    }
   });
 
   it('устаревший ETag в If-None-Match получает 200 с полным списком', async () => {
