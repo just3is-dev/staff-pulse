@@ -9,24 +9,26 @@ import { aggregationSpy } from '@/test/aggregation-spy';
 import { installMatchMedia, setViewportWidth } from '@/test/match-media';
 import { OrgTreeScreen } from './OrgTreeScreen';
 
+// headcount не по порядку дерева — иначе сортировка по возрастанию
+// случайно совпала бы с исходным порядком и ничего бы не доказывала.
 const nodes = [
   makeOrgNode({
     id: 'div-1',
     name: 'Дивизион 1',
     parentId: null,
-    headcount: 10,
+    headcount: 30,
   }),
   makeOrgNode({
     id: 'div-2',
     name: 'Дивизион 2',
     parentId: null,
-    headcount: 20,
+    headcount: 10,
   }),
   makeOrgNode({
     id: 'div-3',
     name: 'Дивизион 3',
     parentId: null,
-    headcount: 30,
+    headcount: 20,
   }),
 ];
 
@@ -59,6 +61,11 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
     );
     await sortByHeadcount(user);
     expect(activeHeaderOf()).toHaveAttribute('aria-sort', 'ascending');
+    expect(rowsOf().map(nameOf)).toEqual([
+      'Дивизион 2',
+      'Дивизион 3',
+      'Дивизион 1',
+    ]);
 
     await user.click(
       within(viewToggle()).getByRole('button', { name: 'Дерево' }),
@@ -71,9 +78,9 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
     act(() => setViewportWidth(1440));
     expect(activeHeaderOf()).toHaveAttribute('aria-sort', 'ascending');
     expect(rowsOf().map(nameOf)).toEqual([
-      'Дивизион 1',
       'Дивизион 2',
       'Дивизион 3',
+      'Дивизион 1',
     ]);
   });
 
@@ -95,39 +102,43 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
 
   it('AC-002-13: после обновления данных с теми же id сортировка остаётся активной и учитывает новые агрегаты', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    installMatchMedia(1440);
-    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(nodes));
-    vi.stubGlobal('fetch', fetchMock);
-    render(<OrgTreeScreen />, { wrapper });
-    await screen.findByRole('region', { name: 'Таблица' });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      installMatchMedia(1440);
+      const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(nodes));
+      vi.stubGlobal('fetch', fetchMock);
+      render(<OrgTreeScreen />, { wrapper });
+      await screen.findByRole('region', { name: 'Таблица' });
 
-    await sortByHeadcount(user);
-    expect(rowsOf().map(nameOf)).toEqual([
-      'Дивизион 1',
-      'Дивизион 2',
-      'Дивизион 3',
-    ]);
-
-    const updatedNodes = nodes.map((node) =>
-      node.id === 'div-1' ? { ...node, headcount: 25 } : node,
-    );
-    fetchMock.mockResolvedValueOnce(jsonResponse(updatedNodes));
-    await vi.advanceTimersByTimeAsync(STALE_TIME_MS + 100);
-    act(() => {
-      window.dispatchEvent(new Event('visibilitychange'));
-    });
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-
-    await waitFor(() =>
+      await sortByHeadcount(user);
       expect(rowsOf().map(nameOf)).toEqual([
         'Дивизион 2',
-        'Дивизион 1',
         'Дивизион 3',
-      ]),
-    );
-    expect(activeHeaderOf()).toHaveAttribute('aria-sort', 'ascending');
+        'Дивизион 1',
+      ]);
 
-    vi.useRealTimers();
+      // div-2 (10) обгоняет div-3 (20) — порядок должен реально
+      // перестроиться, а не просто остаться прежним после обновления.
+      const updatedNodes = nodes.map((node) =>
+        node.id === 'div-2' ? { ...node, headcount: 25 } : node,
+      );
+      fetchMock.mockResolvedValueOnce(jsonResponse(updatedNodes));
+      await vi.advanceTimersByTimeAsync(STALE_TIME_MS + 100);
+      act(() => {
+        window.dispatchEvent(new Event('visibilitychange'));
+      });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+      await waitFor(() =>
+        expect(rowsOf().map(nameOf)).toEqual([
+          'Дивизион 3',
+          'Дивизион 2',
+          'Дивизион 1',
+        ]),
+      );
+      expect(activeHeaderOf()).toHaveAttribute('aria-sort', 'ascending');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

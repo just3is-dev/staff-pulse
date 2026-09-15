@@ -151,6 +151,16 @@ describe('OrgTable', () => {
       'a',
     ]);
 
+    // повторный одиночный клик по уже активному столбцу — снова
+    // по возрастанию, а не переключение на убывание.
+    await user.click(screen.getByRole('button', { name: /Всего сотрудников/ }));
+
+    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
+      'b',
+      'c',
+      'a',
+    ]);
+
     await user.dblClick(
       screen.getByRole('button', { name: /Всего сотрудников/ }),
     );
@@ -159,6 +169,14 @@ describe('OrgTable', () => {
       'a',
       'c',
       'b',
+    ]);
+
+    await user.click(screen.getByRole('button', { name: /Всего сотрудников/ }));
+
+    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
+      'b',
+      'c',
+      'a',
     ]);
   });
 

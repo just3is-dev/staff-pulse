@@ -45,11 +45,9 @@ export function sortTableRows(
 ): OrgTableRow[] {
   if (!sort) return rows;
 
+  // Array#sort стабилен (ES2019) — равные по колонке строки сохраняют
+  // взаимный порядок дерева без отдельного тай-брейка по индексу.
   return rows
-    .map((row, index) => ({ row, index }))
-    .sort((a, b) => {
-      const cmp = compareColumn(a.row, b.row, sort.column, sort.direction);
-      return cmp !== 0 ? cmp : a.index - b.index;
-    })
-    .map(({ row }) => row);
+    .slice()
+    .sort((a, b) => compareColumn(a, b, sort.column, sort.direction));
 }

@@ -8,6 +8,7 @@ import { formatAveragePerformance } from './format-average-performance';
 import {
   sortTableRows,
   type SortColumn,
+  type SortDirection,
   type SortState,
 } from './sort-table-rows';
 
@@ -34,8 +35,8 @@ const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: 'averagePerformance', label: 'Средняя эффективность' },
 ];
 
-const DIRECTION_SIGN: Record<'asc' | 'desc', string> = { asc: '▲', desc: '▼' };
-const ARIA_SORT: Record<'asc' | 'desc', 'ascending' | 'descending'> = {
+const DIRECTION_SIGN: Record<SortDirection, string> = { asc: '▲', desc: '▼' };
+const ARIA_SORT: Record<SortDirection, 'ascending' | 'descending'> = {
   asc: 'ascending',
   desc: 'descending',
 };

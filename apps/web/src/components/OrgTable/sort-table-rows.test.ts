@@ -92,4 +92,17 @@ describe('sortTableRows', () => {
       ),
     ).toEqual(['b', 'c', 'a']);
   });
+
+  it('названия, различающиеся только регистром, считаются равными и сохраняют порядок дерева', () => {
+    const rows = [
+      row({ id: 'a', name: 'Альфа' }),
+      row({ id: 'b', name: 'альфа' }),
+    ];
+
+    expect(
+      sortTableRows(rows, { column: 'name', direction: 'asc' }).map(
+        (r) => r.id,
+      ),
+    ).toEqual(['a', 'b']);
+  });
 });
