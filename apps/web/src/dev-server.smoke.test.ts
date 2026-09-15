@@ -7,7 +7,7 @@ import { parseOrgTree } from '@staff-pulse/shared';
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const CLIENT_URL = 'http://localhost:5173';
 const CLIENT_PORT = 5173;
-const SERVER_PORT = 3000;
+const SERVER_PORT = Number(process.env.PORT ?? 3000);
 const READY_TIMEOUT_MS = 40_000;
 const POLL_INTERVAL_MS = 300;
 const TEST_TIMEOUT_MS = 100_000;
@@ -54,6 +54,8 @@ function killProcessTree(proc: ChildProcess): Promise<void> {
     }
     const pid = proc.pid;
     let settled = false;
+    let killTimer: NodeJS.Timeout | undefined;
+    let giveUpTimer: NodeJS.Timeout | undefined;
     const finish = () => {
       if (settled) return;
       settled = true;
@@ -70,14 +72,14 @@ function killProcessTree(proc: ChildProcess): Promise<void> {
       return;
     }
 
-    const killTimer = setTimeout(() => {
+    killTimer = setTimeout(() => {
       try {
         process.kill(-pid, 'SIGKILL');
       } catch {
         finish();
       }
     }, 5_000);
-    const giveUpTimer = setTimeout(finish, 10_000);
+    giveUpTimer = setTimeout(finish, 10_000);
   });
 }
 
@@ -151,10 +153,12 @@ describe('npm run dev из корня репозитория', () => {
         );
       }
       const parsed = parseOrgTree(body);
-      expect(parsed.ok).toBe(true);
-      if (parsed.ok) {
-        expect(parsed.nodes.length).toBeGreaterThan(0);
+      if (!parsed.ok) {
+        throw new Error(
+          `Ответ /api/org-tree не прошёл схему: ${parsed.error.message}\n--- вывод npm run dev ---\n${output.slice(-4000)}`,
+        );
       }
+      expect(parsed.nodes.length).toBeGreaterThan(0);
     },
     TEST_TIMEOUT_MS,
   );
