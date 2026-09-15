@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import type { OrgNode } from '@staff-pulse/shared';
 import type { SubtreeAggregate } from '@/org-model/aggregate-subtrees';
@@ -11,6 +11,13 @@ import {
   type SortDirection,
   type SortState,
 } from './sort-table-rows';
+import { filterTableRows } from './filter-table-rows';
+
+const FILTER_DEBOUNCE_MS = 250;
+
+const FilterField = styled.div`
+  margin: 0 0 1em;
+`;
 
 const Table = styled.table`
   width: 100%;
@@ -48,52 +55,83 @@ type OrgTableProps = {
 
 export function OrgTable({ nodes, aggregates }: OrgTableProps) {
   const [sort, setSort] = useState<SortState>(null);
-  const rows = sortTableRows(buildTableRows(nodes, aggregates), sort);
+  const [filterInput, setFilterInput] = useState('');
+  const [appliedFilter, setAppliedFilter] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setAppliedFilter(filterInput),
+      FILTER_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [filterInput]);
+
+  const rows = filterTableRows(
+    sortTableRows(buildTableRows(nodes, aggregates), sort),
+    appliedFilter,
+  );
 
   return (
-    <Table>
-      <thead>
-        <tr>
-          {COLUMNS.map((column) => {
-            const isActive = sort?.column === column.key;
-            return (
-              <th
-                key={column.key}
-                aria-sort={isActive ? ARIA_SORT[sort.direction] : undefined}
-              >
-                <SortButton
-                  type="button"
-                  onClick={() =>
-                    setSort({ column: column.key, direction: 'asc' })
-                  }
-                  onDoubleClick={() =>
-                    setSort({ column: column.key, direction: 'desc' })
-                  }
+    <>
+      <FilterField>
+        <label htmlFor="org-table-filter">Фильтр по названию</label>{' '}
+        <input
+          id="org-table-filter"
+          type="text"
+          value={filterInput}
+          onChange={(event) => setFilterInput(event.target.value)}
+        />
+      </FilterField>
+      <Table>
+        <thead>
+          <tr>
+            {COLUMNS.map((column) => {
+              const isActive = sort?.column === column.key;
+              return (
+                <th
+                  key={column.key}
+                  aria-sort={isActive ? ARIA_SORT[sort.direction] : undefined}
                 >
-                  {column.label}
-                  {isActive && (
-                    <span aria-hidden="true">
-                      {' '}
-                      {DIRECTION_SIGN[sort.direction]}
-                    </span>
-                  )}
-                </SortButton>
-              </th>
-            );
-          })}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.id}>
-            <td>{row.name}</td>
-            <td>{row.level}</td>
-            <td>{row.headcount}</td>
-            <td>{formatBudget(row.budget)}</td>
-            <td>{formatAveragePerformance(row.averagePerformance)}</td>
+                  <SortButton
+                    type="button"
+                    onClick={() =>
+                      setSort({ column: column.key, direction: 'asc' })
+                    }
+                    onDoubleClick={() =>
+                      setSort({ column: column.key, direction: 'desc' })
+                    }
+                  >
+                    {column.label}
+                    {isActive && (
+                      <span aria-hidden="true">
+                        {' '}
+                        {DIRECTION_SIGN[sort.direction]}
+                      </span>
+                    )}
+                  </SortButton>
+                </th>
+              );
+            })}
           </tr>
-        ))}
-      </tbody>
-    </Table>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={COLUMNS.length}>Ничего не найдено</td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.id}>
+                <td>{row.name}</td>
+                <td>{row.level}</td>
+                <td>{row.headcount}</td>
+                <td>{formatBudget(row.budget)}</td>
+                <td>{formatAveragePerformance(row.averagePerformance)}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </Table>
+    </>
   );
 }

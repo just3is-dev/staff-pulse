@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { makeOrgNode } from '@/test/make-org-node';
 import { aggregateSubtrees } from '@/org-model/aggregate-subtrees';
@@ -205,5 +211,162 @@ describe('OrgTable', () => {
       screen.getByRole('button', { name: /Всего сотрудников/ }),
     );
     expect(activeHeader).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  it('AC-002-8: применяет фильтр через 250мс после последнего изменения, перезапускает таймер, очистка возвращает все строки', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const nodes = [
+        makeOrgNode({ id: 'a', name: 'Дивизион продаж', parentId: null }),
+        makeOrgNode({ id: 'b', name: 'Отдел маркетинга', parentId: null }),
+      ];
+      const aggregates = aggregateSubtrees(nodes);
+      render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+      const nameOf = (row: HTMLElement) =>
+        within(row).getAllByRole('cell')[0].textContent;
+      const rowsOf = () => screen.getAllByRole('row').slice(1);
+      const input = screen.getByLabelText('Фильтр по названию');
+
+      fireEvent.change(input, { target: { value: 'Отдел' } });
+      expect(input).toHaveValue('Отдел');
+      await vi.advanceTimersByTimeAsync(240);
+      expect(rowsOf().map(nameOf)).toEqual([
+        'Дивизион продаж',
+        'Отдел маркетинга',
+      ]);
+
+      // "Дивизион" совпадает с другой строкой, чем "Отдел": если бы старый
+      // таймер не отменился, применился бы прежний запрос и результат был
+      // бы неверным ("Отдел маркетинга"), а не просто "тем же самым".
+      fireEvent.change(input, { target: { value: 'Дивизион' } });
+      await vi.advanceTimersByTimeAsync(240);
+      expect(rowsOf().map(nameOf)).toEqual([
+        'Дивизион продаж',
+        'Отдел маркетинга',
+      ]);
+
+      await vi.advanceTimersByTimeAsync(20);
+      await waitFor(() =>
+        expect(rowsOf().map(nameOf)).toEqual(['Дивизион продаж']),
+      );
+
+      // регистр и крайние пробелы запроса не важны: другой регистр и
+      // другое слово с пробелами по краям дают ожидаемо другой результат.
+      fireEvent.change(input, { target: { value: '  ОТДЕЛ  ' } });
+      await vi.advanceTimersByTimeAsync(260);
+      await waitFor(() =>
+        expect(rowsOf().map(nameOf)).toEqual(['Отдел маркетинга']),
+      );
+
+      fireEvent.change(input, { target: { value: '' } });
+      await vi.advanceTimersByTimeAsync(260);
+      await waitFor(() =>
+        expect(rowsOf().map(nameOf)).toEqual([
+          'Дивизион продаж',
+          'Отдел маркетинга',
+        ]),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('AC-002-9: строка совпавшего родителя сохраняет агрегат по всему поддереву, включая отфильтрованных потомков', async () => {
+    const user = userEvent.setup();
+    // hidden-child не совпадает с фильтром "дивизион" и пропадёт из
+    // строк, но его вклад в агрегат родителя (root-1) обязан остаться:
+    // headcount 5+15=20, budget 1000+2000=3000, эффективность
+    // (80*5+40*15)/20=50.
+    const nodes = [
+      makeOrgNode({
+        id: 'root-1',
+        name: 'Дивизион продаж',
+        parentId: null,
+        headcount: 5,
+        budget: 1_000,
+        performance: 80,
+      }),
+      makeOrgNode({
+        id: 'hidden-child',
+        name: 'Команда поддержки',
+        parentId: 'root-1',
+        headcount: 15,
+        budget: 2_000,
+        performance: 40,
+      }),
+      makeOrgNode({
+        id: 'root-2',
+        name: 'Отдел маркетинга',
+        parentId: null,
+        headcount: 8,
+        budget: 500,
+        performance: 60,
+      }),
+    ];
+    const aggregates = aggregateSubtrees(nodes);
+    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+    const cellsOf = (row: HTMLElement) => within(row).getAllByRole('cell');
+    const rowsOf = () => screen.getAllByRole('row').slice(1);
+
+    await user.type(screen.getByLabelText('Фильтр по названию'), 'дивизион');
+    await waitFor(() => expect(rowsOf()).toHaveLength(1));
+
+    const [nameCell, , headcountCell, budgetCell, performanceCell] = cellsOf(
+      rowsOf()[0],
+    );
+    expect(nameCell.textContent).toBe('Дивизион продаж');
+    expect(headcountCell.textContent).toBe('20');
+    expect(budgetCell.textContent).toMatch(/^3[  ]000 руб\.$/);
+    expect(performanceCell.textContent).toBe('50,0');
+  });
+
+  it('AC-002-9: фильтр работает поверх текущей сортировки, «Ничего не найдено» при отсутствии совпадений', async () => {
+    const user = userEvent.setup();
+    const nodes = [
+      makeOrgNode({
+        id: 'a',
+        name: 'Дивизион продаж',
+        parentId: null,
+        headcount: 30,
+      }),
+      makeOrgNode({
+        id: 'b',
+        name: 'Отдел маркетинга',
+        parentId: null,
+        headcount: 10,
+      }),
+      makeOrgNode({
+        id: 'c',
+        name: 'Дивизион разработки',
+        parentId: null,
+        headcount: 20,
+      }),
+    ];
+    const aggregates = aggregateSubtrees(nodes);
+    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+    const nameOf = (row: HTMLElement) =>
+      within(row).getAllByRole('cell')[0].textContent;
+    const rowsOf = () => screen.getAllByRole('row').slice(1);
+
+    await user.click(screen.getByRole('button', { name: 'Всего сотрудников' }));
+    expect(rowsOf().map(nameOf)).toEqual([
+      'Отдел маркетинга',
+      'Дивизион разработки',
+      'Дивизион продаж',
+    ]);
+
+    await user.type(screen.getByLabelText('Фильтр по названию'), 'дивизион');
+    await waitFor(() =>
+      expect(rowsOf().map(nameOf)).toEqual([
+        'Дивизион разработки',
+        'Дивизион продаж',
+      ]),
+    );
+
+    await user.clear(screen.getByLabelText('Фильтр по названию'));
+    await user.type(screen.getByLabelText('Фильтр по названию'), 'нет такого');
+    await waitFor(() =>
+      expect(screen.getByText('Ничего не найдено')).toBeInTheDocument(),
+    );
   });
 });

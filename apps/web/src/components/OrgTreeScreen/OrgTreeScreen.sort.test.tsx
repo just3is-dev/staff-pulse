@@ -7,6 +7,7 @@ import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
 import { installMatchMedia, setViewportWidth } from '@/test/match-media';
+import { nameOf, rowsOf, tableRegion } from '@/test/screen-regions';
 import { OrgTreeScreen } from './OrgTreeScreen';
 
 // headcount не по порядку дерева — иначе сортировка по возрастанию
@@ -34,10 +35,6 @@ const nodes = [
 
 const { wrapper } = setupQueryClient();
 
-const tableRegion = () => screen.getByRole('region', { name: 'Таблица' });
-const nameOf = (row: HTMLElement) =>
-  within(row).getAllByRole('cell')[0].textContent;
-const rowsOf = () => within(tableRegion()).getAllByRole('row').slice(1);
 const activeHeaderOf = () =>
   within(tableRegion())
     .getAllByRole('columnheader')
