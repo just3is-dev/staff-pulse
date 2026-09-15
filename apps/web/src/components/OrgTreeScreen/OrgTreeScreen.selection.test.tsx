@@ -284,5 +284,26 @@ describe('OrgTreeScreen: выделение узла по клику на стр
       expect(scrollIntoViewSpy.mock.contexts.at(-1)).toBe(treeNode);
       expect(treeSectionHiddenAtCallTime).toBe(false);
     });
+
+    it('на широком экране клик по строке не меняет вид — выбор «Таблица» переживает переход через 1280px обратно на узкий', async () => {
+      const user = userEvent.setup();
+      installMatchMedia(1024);
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(nodes)));
+      render(<OrgTreeScreen />, { wrapper });
+      const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
+      await screen.findByRole('group', { name: 'Вид' });
+      await user.click(
+        within(viewToggle()).getByRole('button', { name: 'Таблица' }),
+      );
+
+      act(() => setViewportWidth(1440));
+      await selectRow(user, 'Отдел 2');
+
+      act(() => setViewportWidth(1024));
+      expect(
+        within(viewToggle()).getByRole('button', { name: 'Таблица' }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      expect(tableRegion()).toBeVisible();
+    });
   });
 });
