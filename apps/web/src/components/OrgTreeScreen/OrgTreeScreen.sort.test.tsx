@@ -110,11 +110,8 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
 
     it('AC-002-13: после обновления данных с теми же id сортировка остаётся активной и учитывает новые агрегаты', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      const fetchMock = await renderOrgScreen({
-        width: 1440,
-        fetchMock: vi.fn().mockResolvedValueOnce(jsonResponse(nodes)),
-        wrapper,
-      });
+      const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(nodes));
+      await renderOrgScreen({ width: 1440, fetchMock, wrapper });
 
       await sortByHeadcount(user);
       expect(rowsOf().map(nameOf)).toEqual([

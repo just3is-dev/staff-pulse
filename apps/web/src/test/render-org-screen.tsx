@@ -15,7 +15,7 @@ export async function renderOrgScreen({
   fetchMock,
   wrapper,
   awaitReady = true,
-}: RenderOrgScreenOptions) {
+}: RenderOrgScreenOptions): Promise<void> {
   installMatchMedia(width);
   vi.stubGlobal('fetch', fetchMock);
   render(<OrgTreeScreen />, { wrapper });
@@ -25,6 +25,4 @@ export async function renderOrgScreen({
       ? screen.findByRole('group', { name: 'Вид' })
       : screen.findByRole('region', { name: 'Дерево' }));
   }
-
-  return fetchMock;
 }

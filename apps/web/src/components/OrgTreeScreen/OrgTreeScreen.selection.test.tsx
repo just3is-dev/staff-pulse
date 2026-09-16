@@ -64,10 +64,11 @@ const currentTreeNodes = () =>
     element.getAttribute('data-testid'),
   );
 
-function renderLoadedScreen(
+async function renderLoadedScreen(
   fetchMock = vi.fn().mockResolvedValue(jsonResponse(nodes)),
 ) {
-  return renderOrgScreen({ width: 1440, fetchMock, wrapper });
+  await renderOrgScreen({ width: 1440, fetchMock, wrapper });
+  return fetchMock;
 }
 
 const selectRow = (user: User, name: string) => user.click(rowNamed(name));

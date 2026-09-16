@@ -107,11 +107,8 @@ describe('OrgTreeScreen: фильтр таблицы', () => {
 
   it('AC-002-13: после обновления данных фильтр остаётся активным и применяется к новым данным', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const fetchMock = await renderOrgScreen({
-      width: 1440,
-      fetchMock: vi.fn().mockResolvedValueOnce(jsonResponse(nodes)),
-      wrapper,
-    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(nodes));
+    await renderOrgScreen({ width: 1440, fetchMock, wrapper });
 
     await user.type(filterInput(), 'Дивизион');
     await vi.advanceTimersByTimeAsync(300);
