@@ -1,32 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import type { OrgTableRow } from './build-table-rows';
+import { makeTableRow } from '@/test/make-table-row';
 import { sortTableRows } from './sort-table-rows';
-
-function row(
-  overrides: Partial<OrgTableRow> & Pick<OrgTableRow, 'id'>,
-): OrgTableRow {
-  return {
-    name: overrides.id,
-    level: 1,
-    headcount: 0,
-    budget: 0,
-    averagePerformance: undefined,
-    ...overrides,
-  };
-}
 
 describe('sortTableRows', () => {
   it('без сортировки (sort: null) возвращает порядок дерева как есть', () => {
-    const rows = [row({ id: 'a' }), row({ id: 'b' })];
+    const rows = [makeTableRow({ id: 'a' }), makeTableRow({ id: 'b' })];
 
     expect(sortTableRows(rows, null)).toEqual(rows);
   });
 
   it('AC-002-7: при равных значениях сортируемого столбца сохраняет порядок дерева в обоих направлениях', () => {
     const rows = [
-      row({ id: 'a', headcount: 5 }),
-      row({ id: 'b', headcount: 5 }),
-      row({ id: 'c', headcount: 5 }),
+      makeTableRow({ id: 'a', headcount: 5 }),
+      makeTableRow({ id: 'b', headcount: 5 }),
+      makeTableRow({ id: 'c', headcount: 5 }),
     ];
 
     const asc = sortTableRows(rows, { column: 'headcount', direction: 'asc' });
@@ -41,10 +28,10 @@ describe('sortTableRows', () => {
 
   it('AC-002-7: строки без средней эффективности всегда внизу — и по возрастанию, и по убыванию', () => {
     const rows = [
-      row({ id: 'a', averagePerformance: 60 }),
-      row({ id: 'b', averagePerformance: undefined }),
-      row({ id: 'c', averagePerformance: 80 }),
-      row({ id: 'd', averagePerformance: undefined }),
+      makeTableRow({ id: 'a', averagePerformance: 60 }),
+      makeTableRow({ id: 'b', averagePerformance: undefined }),
+      makeTableRow({ id: 'c', averagePerformance: 80 }),
+      makeTableRow({ id: 'd', averagePerformance: undefined }),
     ];
 
     const asc = sortTableRows(rows, {
@@ -62,9 +49,9 @@ describe('sortTableRows', () => {
 
   it('сортирует числовой столбец по значению', () => {
     const rows = [
-      row({ id: 'a', budget: 300 }),
-      row({ id: 'b', budget: 100 }),
-      row({ id: 'c', budget: 200 }),
+      makeTableRow({ id: 'a', budget: 300 }),
+      makeTableRow({ id: 'b', budget: 100 }),
+      makeTableRow({ id: 'c', budget: 200 }),
     ];
 
     expect(
@@ -81,9 +68,9 @@ describe('sortTableRows', () => {
 
   it('сортирует «Подразделение» по алфавиту без учёта регистра', () => {
     const rows = [
-      row({ id: 'a', name: 'ёлки' }),
-      row({ id: 'b', name: 'Айсберг' }),
-      row({ id: 'c', name: 'берёза' }),
+      makeTableRow({ id: 'a', name: 'ёлки' }),
+      makeTableRow({ id: 'b', name: 'Айсберг' }),
+      makeTableRow({ id: 'c', name: 'берёза' }),
     ];
 
     expect(
@@ -95,8 +82,8 @@ describe('sortTableRows', () => {
 
   it('названия, различающиеся только регистром, считаются равными и сохраняют порядок дерева', () => {
     const rows = [
-      row({ id: 'a', name: 'Альфа' }),
-      row({ id: 'b', name: 'альфа' }),
+      makeTableRow({ id: 'a', name: 'Альфа' }),
+      makeTableRow({ id: 'b', name: 'альфа' }),
     ];
 
     expect(
