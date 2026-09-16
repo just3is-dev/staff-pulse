@@ -1,12 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
 import { setViewportWidth } from '@/test/match-media';
-import { nameOf, rowsOf, tableRegion } from '@/test/screen-regions';
+import {
+  nameOf,
+  rowsOf,
+  tableRegion,
+  toggleButton,
+} from '@/test/screen-regions';
 import { renderOrgScreen } from '@/test/render-org-screen';
 import { revalidateWith } from '@/test/revalidate';
 
@@ -53,10 +58,7 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
       wrapper,
     });
 
-    const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-    );
+    await user.click(toggleButton('Таблица'));
     await sortByHeadcount(user);
     expect(activeHeaderOf()).toHaveAttribute('aria-sort', 'ascending');
     expect(rowsOf().map(nameOf)).toEqual([
@@ -65,12 +67,8 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
       'Дивизион 1',
     ]);
 
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Дерево' }),
-    );
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-    );
+    await user.click(toggleButton('Дерево'));
+    await user.click(toggleButton('Таблица'));
     expect(activeHeaderOf()).toHaveAttribute('aria-sort', 'ascending');
 
     act(() => setViewportWidth(1440));

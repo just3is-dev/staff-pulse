@@ -7,6 +7,13 @@ import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
 import { setViewportWidth } from '@/test/match-media';
 import { renderOrgScreen } from '@/test/render-org-screen';
+import {
+  queryTableRegion,
+  queryTreeRegion,
+  queryViewToggle,
+  toggleButton,
+  treeRegion,
+} from '@/test/screen-regions';
 
 const nodes = [
   makeOrgNode({ id: 'div-1', name: 'Дивизион 1', parentId: null }),
@@ -24,21 +31,13 @@ function renderLoadedScreen(width = 1440) {
   });
 }
 
-const treeRegion = () => screen.queryByRole('region', { name: 'Дерево' });
-const tableRegion = () => screen.queryByRole('region', { name: 'Таблица' });
-const viewToggle = () => screen.queryByRole('group', { name: 'Вид' });
-const toggleButton = (name: 'Дерево' | 'Таблица') =>
-  within(screen.getByRole('group', { name: 'Вид' })).getByRole('button', {
-    name,
-  });
-
 describe('OrgTreeScreen: компоновка по ширине', () => {
   it('AC-002-1: от 1280px дерево и таблица видны рядом без переключателя', async () => {
     await renderLoadedScreen(1280);
 
-    expect(treeRegion()).toBeInTheDocument();
-    expect(tableRegion()).toBeInTheDocument();
-    expect(viewToggle()).not.toBeInTheDocument();
+    expect(queryTreeRegion()).toBeInTheDocument();
+    expect(queryTableRegion()).toBeInTheDocument();
+    expect(queryViewToggle()).not.toBeInTheDocument();
   });
 
   it('AC-002-1: уже 1280px по умолчанию виден только вид «Дерево», выбор «Таблица» оставляет только таблицу', async () => {
@@ -47,28 +46,28 @@ describe('OrgTreeScreen: компоновка по ширине', () => {
 
     expect(toggleButton('Дерево')).toHaveAttribute('aria-pressed', 'true');
     expect(toggleButton('Таблица')).toHaveAttribute('aria-pressed', 'false');
-    expect(treeRegion()).toBeInTheDocument();
-    expect(tableRegion()).not.toBeInTheDocument();
+    expect(queryTreeRegion()).toBeInTheDocument();
+    expect(queryTableRegion()).not.toBeInTheDocument();
 
     await user.click(toggleButton('Таблица'));
 
     expect(toggleButton('Таблица')).toHaveAttribute('aria-pressed', 'true');
-    expect(treeRegion()).not.toBeInTheDocument();
-    expect(tableRegion()).toBeInTheDocument();
+    expect(queryTreeRegion()).not.toBeInTheDocument();
+    expect(queryTableRegion()).toBeInTheDocument();
   });
 
   it('AC-002-1: при изменении ширины через 1280px переключатель появляется и исчезает', async () => {
     await renderLoadedScreen();
-    expect(viewToggle()).not.toBeInTheDocument();
+    expect(queryViewToggle()).not.toBeInTheDocument();
 
     act(() => setViewportWidth(1024));
-    expect(viewToggle()).toBeInTheDocument();
-    expect(tableRegion()).not.toBeInTheDocument();
+    expect(queryViewToggle()).toBeInTheDocument();
+    expect(queryTableRegion()).not.toBeInTheDocument();
 
     act(() => setViewportWidth(1440));
-    expect(viewToggle()).not.toBeInTheDocument();
-    expect(treeRegion()).toBeInTheDocument();
-    expect(tableRegion()).toBeInTheDocument();
+    expect(queryViewToggle()).not.toBeInTheDocument();
+    expect(queryTreeRegion()).toBeInTheDocument();
+    expect(queryTableRegion()).toBeInTheDocument();
   });
 
   it('AC-002-1: если на узком экране выбрана «Таблица», после расширения окна снова видны оба вида', async () => {
@@ -76,18 +75,18 @@ describe('OrgTreeScreen: компоновка по ширине', () => {
     await renderLoadedScreen(1024);
 
     await user.click(toggleButton('Таблица'));
-    expect(treeRegion()).not.toBeInTheDocument();
+    expect(queryTreeRegion()).not.toBeInTheDocument();
 
     act(() => setViewportWidth(1440));
-    expect(viewToggle()).not.toBeInTheDocument();
-    expect(treeRegion()).toBeInTheDocument();
-    expect(tableRegion()).toBeInTheDocument();
+    expect(queryViewToggle()).not.toBeInTheDocument();
+    expect(queryTreeRegion()).toBeInTheDocument();
+    expect(queryTableRegion()).toBeInTheDocument();
   });
 
   it('AC-002-2: раскрытие ветвей дерева сохраняется после смены вида и перехода ширины через 1280px', async () => {
     const user = userEvent.setup();
     await renderLoadedScreen();
-    const tree = () => within(treeRegion()!);
+    const tree = () => within(treeRegion());
 
     await user.click(
       tree().getByRole('button', { name: 'Развернуть Отдел 1' }),
@@ -137,7 +136,7 @@ describe('OrgTreeScreen: компоновка по ширине', () => {
       });
 
       await screen.findByText(marker);
-      expect(viewToggle()).not.toBeInTheDocument();
+      expect(queryViewToggle()).not.toBeInTheDocument();
     },
   );
 });
