@@ -9,6 +9,7 @@ import { setupQueryClient } from '@/test/query-client-harness';
 import { fetchCallOf } from '@/test/request-init';
 import { renderOrgScreen } from '@/test/render-org-screen';
 import { revalidateWith } from '@/test/revalidate';
+import { cellsOf, rowNamed, treeRegion } from '@/test/screen-regions';
 
 const nodes: OrgNode[] = [
   makeOrgNode({
@@ -28,7 +29,7 @@ function neverSettles(): Promise<Response> {
 
 const { client, wrapper } = setupQueryClient();
 
-const tree = () => within(screen.getByRole('region', { name: 'Дерево' }));
+const tree = () => within(treeRegion());
 
 describe('OrgTreeScreen', () => {
   it('AC-001-9: до первого ответа сервера показывает «Загрузка»', async () => {
@@ -187,16 +188,7 @@ describe('OrgTreeScreen: фоновая ревалидация', () => {
   const headcountOf = (id: string) =>
     within(screen.getByTestId(`org-node-${id}`)).getByTestId('node-headcount');
 
-  function tableRowFor(name: string) {
-    const tableRegion = within(screen.getByRole('region', { name: 'Таблица' }));
-    const row = tableRegion
-      .getAllByRole('row')
-      .find((candidate) => within(candidate).queryByText(name));
-    if (!row) throw new Error(`Строка таблицы для «${name}» не найдена`);
-    return within(row).getAllByRole('cell');
-  }
-
-  const tableHeadcountOf = (name: string) => tableRowFor(name)[2];
+  const tableHeadcountOf = (name: string) => cellsOf(rowNamed(name))[2];
 
   function setupUser() {
     return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

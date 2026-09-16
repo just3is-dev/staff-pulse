@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
@@ -7,7 +7,16 @@ import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
 import { setViewportWidth } from '@/test/match-media';
 import { scrollIntoViewSpy } from '@/test/scroll-into-view';
-import { nameOf, rowsOf, tableRegion, treeRegion } from '@/test/screen-regions';
+import {
+  nameOf,
+  queryTableRegion,
+  queryTreeRegion,
+  rowNamed,
+  rowsOf,
+  tableRegion,
+  toggleButton,
+  treeRegion,
+} from '@/test/screen-regions';
 import { renderOrgScreen } from '@/test/render-org-screen';
 import { revalidateWith } from '@/test/revalidate';
 
@@ -48,11 +57,6 @@ const { wrapper } = setupQueryClient();
 
 type User = ReturnType<typeof userEvent.setup>;
 
-const rowNamed = (name: string) => {
-  const row = rowsOf().find((candidate) => nameOf(candidate) === name);
-  if (!row) throw new Error(`Нет строки «${name}»`);
-  return row;
-};
 const treeNodeNamed = (name: string) =>
   within(treeRegion())
     .getByText(name)
@@ -133,14 +137,9 @@ describe('OrgTreeScreen: выделение узла по клику на стр
     await selectRow(user, 'Команда 1');
 
     act(() => setViewportWidth(1024));
-    const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-    );
+    await user.click(toggleButton('Таблица'));
     expect(selectedRows().map(nameOf)).toEqual(['Команда 1']);
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Дерево' }),
-    );
+    await user.click(toggleButton('Дерево'));
     expect(currentTreeNodes()).toEqual(['org-node-team-1']);
 
     act(() => setViewportWidth(1440));
@@ -243,14 +242,9 @@ describe('OrgTreeScreen: выделение узла по клику на стр
         fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
         wrapper,
       });
-      const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
-      await user.click(
-        within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-      );
+      await user.click(toggleButton('Таблица'));
       expect(tableRegion()).toBeVisible();
-      expect(
-        screen.queryByRole('region', { name: 'Дерево' }),
-      ).not.toBeInTheDocument();
+      expect(queryTreeRegion()).not.toBeInTheDocument();
 
       let treeSectionHiddenAtCallTime: boolean | undefined;
       scrollIntoViewSpy.mockImplementationOnce(function (this: HTMLElement) {
@@ -260,13 +254,9 @@ describe('OrgTreeScreen: выделение узла по клику на стр
 
       await selectRow(user, 'Команда 1');
 
-      expect(
-        within(viewToggle()).getByRole('button', { name: 'Дерево' }),
-      ).toHaveAttribute('aria-pressed', 'true');
+      expect(toggleButton('Дерево')).toHaveAttribute('aria-pressed', 'true');
       expect(treeRegion()).toBeVisible();
-      expect(
-        screen.queryByRole('region', { name: 'Таблица' }),
-      ).not.toBeInTheDocument();
+      expect(queryTableRegion()).not.toBeInTheDocument();
       const treeNode = treeNodeNamed('Команда 1');
       expect(treeNode).toHaveAttribute('aria-current', 'true');
       await waitFor(() => expect(scrollIntoViewSpy).toHaveBeenCalled());
@@ -281,18 +271,13 @@ describe('OrgTreeScreen: выделение узла по клику на стр
         fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
         wrapper,
       });
-      const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
-      await user.click(
-        within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-      );
+      await user.click(toggleButton('Таблица'));
 
       act(() => setViewportWidth(1440));
       await selectRow(user, 'Отдел 2');
 
       act(() => setViewportWidth(1024));
-      expect(
-        within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-      ).toHaveAttribute('aria-pressed', 'true');
+      expect(toggleButton('Таблица')).toHaveAttribute('aria-pressed', 'true');
       expect(tableRegion()).toBeVisible();
     });
   });

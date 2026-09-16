@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
 import { setViewportWidth } from '@/test/match-media';
-import { nameOf, rowsOf, tableRegion, treeRegion } from '@/test/screen-regions';
+import {
+  nameOf,
+  rowsOf,
+  tableRegion,
+  toggleButton,
+  treeRegion,
+} from '@/test/screen-regions';
 import { renderOrgScreen } from '@/test/render-org-screen';
 import { revalidateWith } from '@/test/revalidate';
 
@@ -37,23 +43,15 @@ describe('OrgTreeScreen: фильтр таблицы', () => {
       fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
       wrapper,
     });
-    const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
-
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-    );
+    await user.click(toggleButton('Таблица'));
     await user.type(filterInput(), 'Дивизион');
     await vi.advanceTimersByTimeAsync(300);
     await waitFor(() =>
       expect(rowsOf().map(nameOf)).toEqual(['Дивизион продаж']),
     );
 
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Дерево' }),
-    );
-    await user.click(
-      within(viewToggle()).getByRole('button', { name: 'Таблица' }),
-    );
+    await user.click(toggleButton('Дерево'));
+    await user.click(toggleButton('Таблица'));
     expect(filterInput()).toHaveValue('Дивизион');
     expect(rowsOf().map(nameOf)).toEqual(['Дивизион продаж']);
 
