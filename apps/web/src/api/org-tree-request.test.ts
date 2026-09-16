@@ -3,7 +3,7 @@ import { aggregateSubtrees } from '@/org-model/aggregate-subtrees';
 import type { OrgNode } from '@staff-pulse/shared';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
-import { fetchCallOf } from '@/test/request-init';
+import { fetchCallOf } from '@/test/fetch-call';
 import { stubFetch } from '@/test/stub-fetch';
 import {
   fetchOrgTree,

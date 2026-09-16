@@ -4,7 +4,6 @@ import { aggregateSubtrees } from './aggregate-subtrees';
 
 function buildDataset() {
   return [
-    // потомок раньше родителя во входе (team-1a перед dept-1a, team-1 перед dept-1)
     makeOrgNode({
       id: 'team-1a',
       parentId: 'dept-1a',
