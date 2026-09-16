@@ -1,14 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { STALE_TIME_MS } from '@/api/query-client';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
-import { installMatchMedia, setViewportWidth } from '@/test/match-media';
+import { setViewportWidth } from '@/test/match-media';
 import { nameOf, rowsOf, tableRegion } from '@/test/screen-regions';
-import { OrgTreeScreen } from './OrgTreeScreen';
+import { renderOrgScreen } from '@/test/render-org-screen';
+import { revalidateWith } from '@/test/revalidate';
 
 // headcount не по порядку дерева — иначе сортировка по возрастанию
 // случайно совпала бы с исходным порядком и ничего бы не доказывала.
@@ -47,10 +47,11 @@ const sortByHeadcount = (user: ReturnType<typeof userEvent.setup>) =>
 describe('OrgTreeScreen: сортировка таблицы', () => {
   it('AC-002-2: сортировка сохраняется после смены вида и перехода ширины через 1280px', async () => {
     const user = userEvent.setup();
-    installMatchMedia(1024);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(nodes)));
-    render(<OrgTreeScreen />, { wrapper });
-    await screen.findByRole('group', { name: 'Вид' });
+    await renderOrgScreen({
+      width: 1024,
+      fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
+      wrapper,
+    });
 
     const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
     await user.click(
@@ -83,10 +84,11 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
 
   it('AC-002-12: сортировка не пересчитывает агрегаты', async () => {
     const user = userEvent.setup();
-    installMatchMedia(1440);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(nodes)));
-    render(<OrgTreeScreen />, { wrapper });
-    await screen.findByRole('region', { name: 'Таблица' });
+    await renderOrgScreen({
+      width: 1440,
+      fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
+      wrapper,
+    });
     expect(aggregationSpy).toHaveBeenCalledTimes(1);
 
     await sortByHeadcount(user);
@@ -97,15 +99,19 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
     expect(aggregationSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('AC-002-13: после обновления данных с теми же id сортировка остаётся активной и учитывает новые агрегаты', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
+  describe('после обновления данных', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('AC-002-13: после обновления данных с теми же id сортировка остаётся активной и учитывает новые агрегаты', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      installMatchMedia(1440);
       const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(nodes));
-      vi.stubGlobal('fetch', fetchMock);
-      render(<OrgTreeScreen />, { wrapper });
-      await screen.findByRole('region', { name: 'Таблица' });
+      await renderOrgScreen({ width: 1440, fetchMock, wrapper });
 
       await sortByHeadcount(user);
       expect(rowsOf().map(nameOf)).toEqual([
@@ -119,12 +125,7 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
       const updatedNodes = nodes.map((node) =>
         node.id === 'div-2' ? { ...node, headcount: 25 } : node,
       );
-      fetchMock.mockResolvedValueOnce(jsonResponse(updatedNodes));
-      await vi.advanceTimersByTimeAsync(STALE_TIME_MS + 100);
-      act(() => {
-        window.dispatchEvent(new Event('visibilitychange'));
-      });
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      await revalidateWith(fetchMock, jsonResponse(updatedNodes));
 
       await waitFor(() =>
         expect(rowsOf().map(nameOf)).toEqual([
@@ -134,8 +135,6 @@ describe('OrgTreeScreen: сортировка таблицы', () => {
         ]),
       );
       expect(activeHeaderOf()).toHaveAttribute('aria-sort', 'ascending');
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 });

@@ -1,15 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { STALE_TIME_MS } from '@/api/query-client';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
-import { installMatchMedia, setViewportWidth } from '@/test/match-media';
+import { setViewportWidth } from '@/test/match-media';
 import { scrollIntoViewSpy } from '@/test/scroll-into-view';
 import { nameOf, rowsOf, tableRegion, treeRegion } from '@/test/screen-regions';
-import { OrgTreeScreen } from './OrgTreeScreen';
+import { renderOrgScreen } from '@/test/render-org-screen';
+import { revalidateWith } from '@/test/revalidate';
 
 const nodes = [
   makeOrgNode({
@@ -67,9 +67,7 @@ const currentTreeNodes = () =>
 async function renderLoadedScreen(
   fetchMock = vi.fn().mockResolvedValue(jsonResponse(nodes)),
 ) {
-  vi.stubGlobal('fetch', fetchMock);
-  render(<OrgTreeScreen />, { wrapper });
-  await screen.findByRole('region', { name: 'Таблица' });
+  await renderOrgScreen({ width: 1440, fetchMock, wrapper });
   return fetchMock;
 }
 
@@ -162,98 +160,89 @@ describe('OrgTreeScreen: выделение узла по клику на стр
   });
 
   describe('после обновления данных', () => {
-    async function revalidateWith(
-      fetchMock: ReturnType<typeof vi.fn>,
-      nextNodes: typeof nodes,
-    ) {
-      fetchMock.mockResolvedValueOnce(jsonResponse(nextNodes));
-      await vi.advanceTimersByTimeAsync(STALE_TIME_MS + 100);
-      act(() => {
-        window.dispatchEvent(new Event('visibilitychange'));
-      });
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    }
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
     it('AC-002-13: тот же узел остаётся выделенным в таблице и дереве', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      try {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const fetchMock = await renderLoadedScreen(
-          vi.fn().mockResolvedValueOnce(jsonResponse(nodes)),
-        );
-        await selectRow(user, 'Команда 1');
-        await waitFor(() => expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1));
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const fetchMock = await renderLoadedScreen(
+        vi.fn().mockResolvedValueOnce(jsonResponse(nodes)),
+      );
+      await selectRow(user, 'Команда 1');
+      await waitFor(() => expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1));
 
-        await revalidateWith(
-          fetchMock,
+      await revalidateWith(
+        fetchMock,
+        jsonResponse(
           nodes.map((node) =>
             node.id === 'team-1' ? { ...node, headcount: 7 } : node,
           ),
-        );
+        ),
+      );
 
-        await waitFor(() =>
-          expect(
-            within(rowNamed('Команда 1')).getAllByRole('cell')[2],
-          ).toHaveTextContent('7'),
-        );
-        expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
-        expect(selectedRows().map(nameOf)).toEqual(['Команда 1']);
-        expect(currentTreeNodes()).toEqual(['org-node-team-1']);
-      } finally {
-        vi.useRealTimers();
-      }
+      await waitFor(() =>
+        expect(
+          within(rowNamed('Команда 1')).getAllByRole('cell')[2],
+        ).toHaveTextContent('7'),
+      );
+      expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
+      expect(selectedRows().map(nameOf)).toEqual(['Команда 1']);
+      expect(currentTreeNodes()).toEqual(['org-node-team-1']);
     });
 
     it('не раскрывает ветку, которую пользователь свернул после выделения', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      try {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const fetchMock = await renderLoadedScreen(
-          vi.fn().mockResolvedValueOnce(jsonResponse(nodes)),
-        );
-        await selectRow(user, 'Команда 1');
-        await user.click(
-          within(treeRegion()).getByRole('button', {
-            name: 'Свернуть Отдел 1',
-          }),
-        );
-        expect(
-          within(treeRegion()).queryByText('Команда 1'),
-        ).not.toBeInTheDocument();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const fetchMock = await renderLoadedScreen(
+        vi.fn().mockResolvedValueOnce(jsonResponse(nodes)),
+      );
+      await selectRow(user, 'Команда 1');
+      await user.click(
+        within(treeRegion()).getByRole('button', {
+          name: 'Свернуть Отдел 1',
+        }),
+      );
+      expect(
+        within(treeRegion()).queryByText('Команда 1'),
+      ).not.toBeInTheDocument();
 
-        await revalidateWith(
-          fetchMock,
+      await revalidateWith(
+        fetchMock,
+        jsonResponse(
           nodes.map((node) =>
             node.id === 'team-1' ? { ...node, headcount: 7 } : node,
           ),
-        );
+        ),
+      );
 
-        await waitFor(() =>
-          expect(
-            within(rowNamed('Команда 1')).getAllByRole('cell')[2],
-          ).toHaveTextContent('7'),
-        );
+      await waitFor(() =>
         expect(
-          within(treeRegion()).queryByText('Команда 1'),
-        ).not.toBeInTheDocument();
-        expect(
-          within(treeRegion()).getByRole('button', {
-            name: 'Развернуть Отдел 1',
-          }),
-        ).toBeInTheDocument();
-      } finally {
-        vi.useRealTimers();
-      }
+          within(rowNamed('Команда 1')).getAllByRole('cell')[2],
+        ).toHaveTextContent('7'),
+      );
+      expect(
+        within(treeRegion()).queryByText('Команда 1'),
+      ).not.toBeInTheDocument();
+      expect(
+        within(treeRegion()).getByRole('button', {
+          name: 'Развернуть Отдел 1',
+        }),
+      ).toBeInTheDocument();
     });
   });
 
   describe('на узком экране', () => {
     it('AC-002-11: клик по строке при виде «Таблица» переключает на «Дерево», отмечает узел, раскрывает предков; в момент вызова scrollIntoView узел уже видим', async () => {
       const user = userEvent.setup();
-      installMatchMedia(1024);
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(nodes)));
-      render(<OrgTreeScreen />, { wrapper });
-      await screen.findByRole('group', { name: 'Вид' });
+      await renderOrgScreen({
+        width: 1024,
+        fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
+        wrapper,
+      });
       const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
       await user.click(
         within(viewToggle()).getByRole('button', { name: 'Таблица' }),
@@ -287,11 +276,12 @@ describe('OrgTreeScreen: выделение узла по клику на стр
 
     it('на широком экране клик по строке не меняет вид — выбор «Таблица» переживает переход через 1280px обратно на узкий', async () => {
       const user = userEvent.setup();
-      installMatchMedia(1024);
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(nodes)));
-      render(<OrgTreeScreen />, { wrapper });
+      await renderOrgScreen({
+        width: 1024,
+        fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
+        wrapper,
+      });
       const viewToggle = () => screen.getByRole('group', { name: 'Вид' });
-      await screen.findByRole('group', { name: 'Вид' });
       await user.click(
         within(viewToggle()).getByRole('button', { name: 'Таблица' }),
       );
