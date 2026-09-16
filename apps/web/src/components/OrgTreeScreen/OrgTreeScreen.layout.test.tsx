@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
-import { installMatchMedia, setViewportWidth } from '@/test/match-media';
-import { OrgTreeScreen } from './OrgTreeScreen';
+import { setViewportWidth } from '@/test/match-media';
+import { renderOrgScreen } from '@/test/render-org-screen';
 
 const nodes = [
   makeOrgNode({ id: 'div-1', name: 'Дивизион 1', parentId: null }),
@@ -16,10 +16,12 @@ const nodes = [
 
 const { wrapper } = setupQueryClient();
 
-async function renderLoadedScreen() {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(nodes)));
-  render(<OrgTreeScreen />, { wrapper });
-  await screen.findByRole('region', { name: 'Дерево' });
+function renderLoadedScreen(width = 1440) {
+  return renderOrgScreen({
+    width,
+    fetchMock: vi.fn().mockResolvedValue(jsonResponse(nodes)),
+    wrapper,
+  });
 }
 
 const treeRegion = () => screen.queryByRole('region', { name: 'Дерево' });
@@ -32,8 +34,7 @@ const toggleButton = (name: 'Дерево' | 'Таблица') =>
 
 describe('OrgTreeScreen: компоновка по ширине', () => {
   it('AC-002-1: от 1280px дерево и таблица видны рядом без переключателя', async () => {
-    installMatchMedia(1280);
-    await renderLoadedScreen();
+    await renderLoadedScreen(1280);
 
     expect(treeRegion()).toBeInTheDocument();
     expect(tableRegion()).toBeInTheDocument();
@@ -42,8 +43,7 @@ describe('OrgTreeScreen: компоновка по ширине', () => {
 
   it('AC-002-1: уже 1280px по умолчанию виден только вид «Дерево», выбор «Таблица» оставляет только таблицу', async () => {
     const user = userEvent.setup();
-    installMatchMedia(1279);
-    await renderLoadedScreen();
+    await renderLoadedScreen(1279);
 
     expect(toggleButton('Дерево')).toHaveAttribute('aria-pressed', 'true');
     expect(toggleButton('Таблица')).toHaveAttribute('aria-pressed', 'false');
@@ -73,8 +73,7 @@ describe('OrgTreeScreen: компоновка по ширине', () => {
 
   it('AC-002-1: если на узком экране выбрана «Таблица», после расширения окна снова видны оба вида', async () => {
     const user = userEvent.setup();
-    installMatchMedia(1024);
-    await renderLoadedScreen();
+    await renderLoadedScreen(1024);
 
     await user.click(toggleButton('Таблица'));
     expect(treeRegion()).not.toBeInTheDocument();
@@ -130,9 +129,12 @@ describe('OrgTreeScreen: компоновка по ширине', () => {
   ])(
     'в состоянии «%s» на узком экране нет переключателя вида',
     async (_, response, marker) => {
-      installMatchMedia(1024);
-      vi.stubGlobal('fetch', vi.fn(response));
-      render(<OrgTreeScreen />, { wrapper });
+      await renderOrgScreen({
+        width: 1024,
+        fetchMock: vi.fn(response),
+        wrapper,
+        awaitReady: false,
+      });
 
       await screen.findByText(marker);
       expect(viewToggle()).not.toBeInTheDocument();

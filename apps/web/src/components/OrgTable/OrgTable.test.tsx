@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fireEvent,
   render,
@@ -213,9 +213,16 @@ describe('OrgTable', () => {
     expect(activeHeader).toHaveAttribute('aria-sort', 'descending');
   });
 
-  it('AC-002-8: применяет фильтр через 250мс после последнего изменения, перезапускает таймер, очистка возвращает все строки', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
+  describe('с дебаунсом фильтра', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('AC-002-8: применяет фильтр через 250мс после последнего изменения, перезапускает таймер, очистка возвращает все строки', async () => {
       const nodes = [
         makeOrgNode({ id: 'a', name: 'Дивизион продаж', parentId: null }),
         makeOrgNode({ id: 'b', name: 'Отдел маркетинга', parentId: null }),
@@ -266,9 +273,7 @@ describe('OrgTable', () => {
           'Отдел маркетинга',
         ]),
       );
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it('AC-002-9: строка совпавшего родителя сохраняет агрегат по всему поддереву, включая отфильтрованных потомков', async () => {
