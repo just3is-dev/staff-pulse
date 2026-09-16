@@ -6,7 +6,7 @@ import { orgTreeQueryKey } from '@/api/use-org-tree';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
-import { fetchCallOf } from '@/test/request-init';
+import { fetchCallOf } from '@/test/fetch-call';
 import { renderOrgScreen } from '@/test/render-org-screen';
 import { revalidateWith } from '@/test/revalidate';
 import { cellsOf, rowNamed, treeRegion } from '@/test/screen-regions';
