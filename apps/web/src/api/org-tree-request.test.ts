@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { aggregateSubtrees } from '@/org-model/aggregate-subtrees';
 import type { OrgNode } from '@staff-pulse/shared';
 import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { fetchCallOf } from '@/test/request-init';
+import { stubFetch } from '@/test/stub-fetch';
 import {
   fetchOrgTree,
   OrgTreeLoadError,
@@ -31,19 +32,13 @@ const validNodes: OrgNode[] = [
   }),
 ];
 
-const mockFetch = (impl: () => Promise<Response>) => {
-  const fetchMock = vi.fn(impl);
-  vi.stubGlobal('fetch', fetchMock);
-  return fetchMock;
-};
-
 const expectLoadError = async () => {
   await expect(fetchOrgTree()).rejects.toBeInstanceOf(OrgTreeLoadError);
 };
 
 describe('fetchOrgTree', () => {
   it('запрашивает GET /api/org-tree и передаёт сигнал отмены в сетевой вызов', async () => {
-    const fetchMock = mockFetch(async () => jsonResponse(validNodes));
+    const fetchMock = stubFetch(async () => jsonResponse(validNodes));
     const controller = new AbortController();
 
     await fetchOrgTree(controller.signal);
@@ -55,7 +50,7 @@ describe('fetchOrgTree', () => {
   });
 
   it('возвращает проверенные узлы и ETag при валидном ответе', async () => {
-    mockFetch(async () => jsonResponse(validNodes, { etag: 'W/"v1"' }));
+    stubFetch(async () => jsonResponse(validNodes, { etag: 'W/"v1"' }));
     await expect(fetchOrgTree()).resolves.toEqual({
       nodes: validNodes,
       aggregates: aggregateSubtrees(validNodes),
@@ -64,7 +59,7 @@ describe('fetchOrgTree', () => {
   });
 
   it('без ETag в ответе запоминает etag как null', async () => {
-    mockFetch(async () => jsonResponse(validNodes));
+    stubFetch(async () => jsonResponse(validNodes));
     await expect(fetchOrgTree()).resolves.toEqual({
       nodes: validNodes,
       aggregates: aggregateSubtrees(validNodes),
@@ -73,7 +68,7 @@ describe('fetchOrgTree', () => {
   });
 
   it('с прежним снимком отправляет условный запрос мимо HTTP-кэша браузера', async () => {
-    const fetchMock = mockFetch(async () =>
+    const fetchMock = stubFetch(async () =>
       jsonResponse(validNodes, { etag: 'W/"v2"' }),
     );
     const previous: OrgTreeSnapshot = {
@@ -90,7 +85,7 @@ describe('fetchOrgTree', () => {
   });
 
   it('200 на условный запрос заменяет ETag снимка новым', async () => {
-    const fetchMock = mockFetch(async () =>
+    const fetchMock = stubFetch(async () =>
       jsonResponse(validNodes, { etag: 'W/"v2"' }),
     );
     const previous: OrgTreeSnapshot = {
@@ -108,7 +103,7 @@ describe('fetchOrgTree', () => {
   });
 
   it('без прежнего ETag не отправляет If-None-Match', async () => {
-    const fetchMock = mockFetch(async () => jsonResponse(validNodes));
+    const fetchMock = stubFetch(async () => jsonResponse(validNodes));
 
     await fetchOrgTree(undefined, {
       nodes: validNodes,
@@ -121,7 +116,7 @@ describe('fetchOrgTree', () => {
   });
 
   it('ответ 304 возвращает прежний снимок тем же объектом', async () => {
-    mockFetch(async () => new Response(null, { status: 304 }));
+    stubFetch(async () => new Response(null, { status: 304 }));
     const previous: OrgTreeSnapshot = {
       nodes: validNodes,
       aggregates: aggregateSubtrees(validNodes),
@@ -132,36 +127,36 @@ describe('fetchOrgTree', () => {
   });
 
   it('ответ 304 без прежнего снимка — ошибка загрузки', async () => {
-    mockFetch(async () => new Response(null, { status: 304 }));
+    stubFetch(async () => new Response(null, { status: 304 }));
     await expectLoadError();
   });
 
   it.each([404, 500, 503])('ответ %s — ошибка загрузки', async (status) => {
-    mockFetch(async () => jsonResponse({ message: 'fail' }, { status }));
+    stubFetch(async () => jsonResponse({ message: 'fail' }, { status }));
     await expectLoadError();
   });
 
   it('сетевой сбой — ошибка загрузки', async () => {
-    mockFetch(async () => {
+    stubFetch(async () => {
       throw new TypeError('Failed to fetch');
     });
     await expectLoadError();
   });
 
   it('тело не JSON — ошибка загрузки', async () => {
-    mockFetch(async () => new Response('<html>oops</html>', { status: 200 }));
+    stubFetch(async () => new Response('<html>oops</html>', { status: 200 }));
     await expectLoadError();
   });
 
   it('тело с нарушением формы — ошибка загрузки', async () => {
-    mockFetch(async () =>
+    stubFetch(async () =>
       jsonResponse([{ ...validNodes[0], performance: 101 }]),
     );
     await expectLoadError();
   });
 
   it('тело с нарушением структуры — ошибка загрузки', async () => {
-    mockFetch(async () =>
+    stubFetch(async () =>
       jsonResponse([validNodes[0], { ...validNodes[1], parentId: 'ghost' }]),
     );
     await expectLoadError();
@@ -169,7 +164,7 @@ describe('fetchOrgTree', () => {
 
   it('отмена запроса пробрасывается как AbortError, а не как ошибка загрузки', async () => {
     const controller = new AbortController();
-    mockFetch(
+    stubFetch(
       () =>
         new Promise<Response>((_, reject) => {
           controller.signal.addEventListener('abort', () =>

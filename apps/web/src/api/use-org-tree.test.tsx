@@ -5,6 +5,7 @@ import { makeOrgNode } from '@/test/make-org-node';
 import { jsonResponse } from '@/test/json-response';
 import { setupQueryClient } from '@/test/query-client-harness';
 import { aggregationSpy } from '@/test/aggregation-spy';
+import { stubFetch } from '@/test/stub-fetch';
 import { orgTreeQueryKey, useOrgTree } from './use-org-tree';
 
 const nodes: OrgNode[] = [
@@ -24,7 +25,7 @@ type PendingRequest = {
   respond: (body: unknown) => Promise<void>;
 };
 
-function mockNetwork() {
+function stubNetwork() {
   const requests: PendingRequest[] = [];
   const fetchMock = vi.fn(
     (_url: string, init?: RequestInit) =>
@@ -61,7 +62,7 @@ afterEach(() => {
 
 describe('useOrgTree', () => {
   it('AC-001-6: 5 секунд данные свежие и не перезапрашиваются, затем отдаются из кэша с одним фоновым запросом', async () => {
-    const { fetchMock, requests } = mockNetwork();
+    const { fetchMock, requests } = stubNetwork();
 
     const first = renderHook(() => useOrgTree(), { wrapper });
     await waitFor(() => expect(requests).toHaveLength(1));
@@ -90,7 +91,7 @@ describe('useOrgTree', () => {
   });
 
   it('AC-001-7: два одновременных обращения порождают один сетевой запрос', async () => {
-    const { fetchMock, requests } = mockNetwork();
+    const { fetchMock, requests } = stubNetwork();
 
     const a = renderHook(() => useOrgTree(), { wrapper });
     const b = renderHook(() => useOrgTree(), { wrapper });
@@ -105,7 +106,7 @@ describe('useOrgTree', () => {
   });
 
   it('AC-001-8: размонтирование до ответа отменяет запрос, пришедший позже ответ не попадает в кэш', async () => {
-    const { requests } = mockNetwork();
+    const { requests } = stubNetwork();
 
     const view = renderHook(() => useOrgTree(), { wrapper });
     await waitFor(() => expect(requests).toHaveLength(1));
@@ -121,10 +122,9 @@ describe('useOrgTree', () => {
   });
 
   it('AC-002-12: агрегаты считаются один раз на версию данных — ответ 304 не пересчитывает, новые данные пересчитывают', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(nodes, { etag: '"v1"' }));
-    vi.stubGlobal('fetch', fetchMock);
+    const fetchMock = stubFetch(async () =>
+      jsonResponse(nodes, { etag: '"v1"' }),
+    );
 
     const view = renderHook(() => useOrgTree(), { wrapper });
     await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
@@ -153,7 +153,7 @@ describe('useOrgTree', () => {
   });
 
   it('значение хука остаётся тем же объектом между рендерами без новых данных', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse(nodes)));
+    stubFetch(async () => jsonResponse(nodes));
 
     const view = renderHook(() => useOrgTree(), { wrapper });
     await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
@@ -163,10 +163,7 @@ describe('useOrgTree', () => {
   });
 
   it('ошибка запроса не повторяется автоматически', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('fail', { status: 500 })),
-    );
+    stubFetch(async () => new Response('fail', { status: 500 }));
 
     const view = renderHook(() => useOrgTree(), { wrapper });
     await waitFor(() => expect(view.result.current.isError).toBe(true));
