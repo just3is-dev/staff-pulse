@@ -11,13 +11,8 @@ import {
 import { aggregateSubtrees } from '@/org-model/aggregate-subtrees';
 import { OrgTable } from './OrgTable';
 
-function renderTable(
-  nodes: OrgNode[],
-  props?: { selectedId?: string | null; onSelectRow?: (id: string) => void },
-) {
-  render(
-    <OrgTable nodes={nodes} aggregates={aggregateSubtrees(nodes)} {...props} />,
-  );
+function renderTable(nodes: OrgNode[]) {
+  render(<OrgTable nodes={nodes} aggregates={aggregateSubtrees(nodes)} />);
 }
 
 const rowsOf = () => rowsOfContainer(document.body);
