@@ -1,15 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { OrgNode } from '@staff-pulse/shared';
 import { makeOrgNode } from '@/test/make-org-node';
+import {
+  cellsOf,
+  nameOf,
+  rowsOf as rowsOfContainer,
+} from '@/test/screen-regions';
 import { aggregateSubtrees } from '@/org-model/aggregate-subtrees';
 import { OrgTable } from './OrgTable';
+
+function renderTable(
+  nodes: OrgNode[],
+  props?: { selectedId?: string | null; onSelectRow?: (id: string) => void },
+) {
+  render(
+    <OrgTable nodes={nodes} aggregates={aggregateSubtrees(nodes)} {...props} />,
+  );
+}
+
+const rowsOf = () => rowsOfContainer(document.body);
 
 describe('OrgTable', () => {
   it('AC-002-4: столбцы, строка на узел в порядке дерева с уровнями — потомок во входе раньше родителя', () => {
@@ -47,9 +58,7 @@ describe('OrgTable', () => {
         performance: 60,
       }),
     ];
-    const aggregates = aggregateSubtrees(nodes);
-
-    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+    renderTable(nodes);
 
     const columnHeaders = screen
       .getAllByRole('columnheader')
@@ -62,17 +71,20 @@ describe('OrgTable', () => {
       'Средняя эффективность',
     ]);
 
-    const rows = screen.getAllByRole('row').slice(1);
-    expect(
-      rows.map((row) => within(row).getAllByRole('cell')[0].textContent),
-    ).toEqual(['Дивизион 1', 'Отдел', 'Команда', 'Дивизион 2']);
+    const rows = rowsOf();
+    expect(rows.map(nameOf)).toEqual([
+      'Дивизион 1',
+      'Отдел',
+      'Команда',
+      'Дивизион 2',
+    ]);
 
     const divisionRow = rows[0];
-    expect(within(divisionRow).getAllByRole('cell')[1].textContent).toBe('1');
+    expect(cellsOf(divisionRow)[1].textContent).toBe('1');
     const deptRow = rows[1];
-    expect(within(deptRow).getAllByRole('cell')[1].textContent).toBe('2');
+    expect(cellsOf(deptRow)[1].textContent).toBe('2');
     const teamRow = rows[2];
-    expect(within(teamRow).getAllByRole('cell')[1].textContent).toBe('3');
+    expect(cellsOf(teamRow)[1].textContent).toBe('3');
   });
 
   it('AC-002-5: форматирует бюджет и среднюю эффективность в ячейках строки, «—» при нулевой численности', () => {
@@ -93,18 +105,14 @@ describe('OrgTable', () => {
         budget: 0,
       }),
     ];
-    const aggregates = aggregateSubtrees(nodes);
+    renderTable(nodes);
 
-    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
-
-    const rows = screen.getAllByRole('row').slice(1);
-    const [budgetCell, performanceCell] = within(rows[0])
-      .getAllByRole('cell')
-      .slice(3);
+    const rows = rowsOf();
+    const [budgetCell, performanceCell] = cellsOf(rows[0]).slice(3);
     expect(budgetCell.textContent).toMatch(/^12[  ]345[  ]678 руб\.$/);
     expect(performanceCell.textContent).toBe('72,4');
 
-    const emptyPerformanceCell = within(rows[1]).getAllByRole('cell')[4];
+    const emptyPerformanceCell = cellsOf(rows[1])[4];
     expect(emptyPerformanceCell.textContent).toBe('—');
   });
 
@@ -115,26 +123,15 @@ describe('OrgTable', () => {
       makeOrgNode({ id: 'b', name: 'айсберг', parentId: null }),
       makeOrgNode({ id: 'c', name: 'Берёза', parentId: null }),
     ];
-    const aggregates = aggregateSubtrees(nodes);
-    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
-    const nameOf = (row: HTMLElement) =>
-      within(row).getAllByRole('cell')[0].textContent;
+    renderTable(nodes);
 
     await user.click(screen.getByRole('button', { name: 'Подразделение' }));
 
-    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
-      'айсберг',
-      'Берёза',
-      'Яблоко',
-    ]);
+    expect(rowsOf().map(nameOf)).toEqual(['айсберг', 'Берёза', 'Яблоко']);
 
     await user.dblClick(screen.getByRole('button', { name: /Подразделение/ }));
 
-    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
-      'Яблоко',
-      'Берёза',
-      'айсберг',
-    ]);
+    expect(rowsOf().map(nameOf)).toEqual(['Яблоко', 'Берёза', 'айсберг']);
   });
 
   it('AC-002-6: клик по числовому столбцу сортирует по значению, двойной клик — по убыванию', async () => {
@@ -144,46 +141,27 @@ describe('OrgTable', () => {
       makeOrgNode({ id: 'b', name: 'b', parentId: null, headcount: 5 }),
       makeOrgNode({ id: 'c', name: 'c', parentId: null, headcount: 10 }),
     ];
-    const aggregates = aggregateSubtrees(nodes);
-    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
-    const nameOf = (row: HTMLElement) =>
-      within(row).getAllByRole('cell')[0].textContent;
+    renderTable(nodes);
 
     await user.click(screen.getByRole('button', { name: 'Всего сотрудников' }));
 
-    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
-      'b',
-      'c',
-      'a',
-    ]);
+    expect(rowsOf().map(nameOf)).toEqual(['b', 'c', 'a']);
 
     // повторный одиночный клик по уже активному столбцу — снова
     // по возрастанию, а не переключение на убывание.
     await user.click(screen.getByRole('button', { name: /Всего сотрудников/ }));
 
-    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
-      'b',
-      'c',
-      'a',
-    ]);
+    expect(rowsOf().map(nameOf)).toEqual(['b', 'c', 'a']);
 
     await user.dblClick(
       screen.getByRole('button', { name: /Всего сотрудников/ }),
     );
 
-    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
-      'a',
-      'c',
-      'b',
-    ]);
+    expect(rowsOf().map(nameOf)).toEqual(['a', 'c', 'b']);
 
     await user.click(screen.getByRole('button', { name: /Всего сотрудников/ }));
 
-    expect(screen.getAllByRole('row').slice(1).map(nameOf)).toEqual([
-      'b',
-      'c',
-      'a',
-    ]);
+    expect(rowsOf().map(nameOf)).toEqual(['b', 'c', 'a']);
   });
 
   it('AC-002-6: признак направления сортировки виден только у активного столбца', async () => {
@@ -192,8 +170,7 @@ describe('OrgTable', () => {
       makeOrgNode({ id: 'a', name: 'a', parentId: null, headcount: 1 }),
       makeOrgNode({ id: 'b', name: 'b', parentId: null, headcount: 2 }),
     ];
-    const aggregates = aggregateSubtrees(nodes);
-    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
+    renderTable(nodes);
 
     await user.click(screen.getByRole('button', { name: 'Всего сотрудников' }));
 
@@ -227,11 +204,7 @@ describe('OrgTable', () => {
         makeOrgNode({ id: 'a', name: 'Дивизион продаж', parentId: null }),
         makeOrgNode({ id: 'b', name: 'Отдел маркетинга', parentId: null }),
       ];
-      const aggregates = aggregateSubtrees(nodes);
-      render(<OrgTable nodes={nodes} aggregates={aggregates} />);
-      const nameOf = (row: HTMLElement) =>
-        within(row).getAllByRole('cell')[0].textContent;
-      const rowsOf = () => screen.getAllByRole('row').slice(1);
+      renderTable(nodes);
       const input = screen.getByLabelText('Фильтр по названию');
 
       fireEvent.change(input, { target: { value: 'Отдел' } });
@@ -308,10 +281,7 @@ describe('OrgTable', () => {
         performance: 60,
       }),
     ];
-    const aggregates = aggregateSubtrees(nodes);
-    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
-    const cellsOf = (row: HTMLElement) => within(row).getAllByRole('cell');
-    const rowsOf = () => screen.getAllByRole('row').slice(1);
+    renderTable(nodes);
 
     await user.type(screen.getByLabelText('Фильтр по названию'), 'дивизион');
     await waitFor(() => expect(rowsOf()).toHaveLength(1));
@@ -347,11 +317,7 @@ describe('OrgTable', () => {
         headcount: 20,
       }),
     ];
-    const aggregates = aggregateSubtrees(nodes);
-    render(<OrgTable nodes={nodes} aggregates={aggregates} />);
-    const nameOf = (row: HTMLElement) =>
-      within(row).getAllByRole('cell')[0].textContent;
-    const rowsOf = () => screen.getAllByRole('row').slice(1);
+    renderTable(nodes);
 
     await user.click(screen.getByRole('button', { name: 'Всего сотрудников' }));
     expect(rowsOf().map(nameOf)).toEqual([
